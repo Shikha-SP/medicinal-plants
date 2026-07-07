@@ -1,0 +1,46 @@
+﻿# Python bytecode
+__pycache__/
+*.py[cod]
+*.class
+
+# PyEnv
+.python-version
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# Test / coverage
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Logs
+*.log
+
+# Generated artifacts
+plant_database.index
+dataset_image_labels.json
+queries/
+dataset/
+
