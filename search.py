@@ -21,6 +21,7 @@ transform = transforms.Compose([
 
 index = faiss.read_index("plant_database.index")
 MAPPING_FILE = "dataset_image_labels.json"
+META_FILE = "plant_database_meta.json"
 QUERY_DIR = "queries"
 VALID_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".ppm", ".pgm", ".tif", ".tiff", ".webp"}
 
@@ -88,6 +89,15 @@ def build_image_class_names(dataset_root="dataset", mapping_file=MAPPING_FILE):
 
 image_class_names = build_image_class_names()
 
+# load metadata produced by vectorization.py if available
+meta_list = None
+if os.path.exists(META_FILE):
+    try:
+        with open(META_FILE, 'r', encoding='utf-8') as f:
+            meta_list = json.load(f)
+    except Exception as e:
+        print(f"Warning: failed to load {META_FILE}: {e}")
+
 def search_plant(image_path):
     image_path = copy_to_queries(image_path)
     print(f"[search] Loading image: {image_path}")
@@ -102,10 +112,106 @@ def search_plant(image_path):
     print("[search] Searching database")
     distances, indices = index.search(vector, 3)
     print(f"\n--- Search Results for {image_path} ---")
+    # preferred fields to display if present in CSV
+    preferred_fields = [
+        'scientific_name', 'scientific name', 'class', 'species', 'genus', 'family', 'order', 'phylum', 'kingdom',
+        'common_name', 'common name', 'vernacular_name', 'vernacular name', 'description', 'medicinal_uses',
+        'area_in_nepal', 'area', 'location', 'habitat', 'id', 'url'
+    ]
+
+    def fmt_confidence(dist_val):
+        # Map distance to (1 - dist) as requested, then to percentage
+        try:
+            conf = (1.0 - float(dist_val)) * 100.0
+        except Exception:
+            conf = 0.0
+        if conf < 0:
+            conf = 0.0
+        if conf > 100:
+            conf = 100.0
+        return conf
+
     for i in range(len(indices[0])):
-        idx = indices[0][i]
-        plant_name = image_class_names[idx] if idx < len(image_class_names) else f"Unknown(index {idx})"
-        print(f"Match {i+1}: {plant_name} (Index {idx}, Distance: {distances[0][i]:.2f})")
+        idx = int(indices[0][i])
+        dist = float(distances[0][i])
+        csv_meta = None
+        display_name = None
+        if meta_list and 0 <= idx < len(meta_list):
+            meta = meta_list[idx]
+            display_name = meta.get('class') or (image_class_names[idx] if idx < len(image_class_names) else None)
+            csv_meta = meta.get('csv_metadata')
+        else:
+            display_name = image_class_names[idx] if idx < len(image_class_names) else f"Unknown(index {idx})"
+
+        conf_pct = fmt_confidence(dist)
+        print(f"Match {i+1}: {display_name} (Index {idx}, Distance: {dist:.4f}, Confidence: {conf_pct:.1f}% )")
+
+        if csv_meta:
+            # Display the fields that exist in your CSV dataset.
+            def print_field(key, label=None):
+                value = csv_meta.get(key)
+                if value is None or str(value).strip() == "":
+                    return
+                print(f"  {label or key}: {value}")
+
+            # Primary plant identity fields
+            print_field('scientific_name', 'Scientific name')
+            print_field('common_name', 'Common name')
+            print_field('iconic_taxon_name', 'Iconic taxon')
+            print_field('taxon_id', 'Taxon ID')
+            print_field('description', 'Description')
+
+            # Nepal location / region fields
+            region_parts = []
+            for key in ['place_town_name', 'place_county_name', 'place_state_name', 'place_country_name']:
+                value = csv_meta.get(key)
+                if value and str(value).strip():
+                    region_parts.append(str(value).strip())
+            if region_parts:
+                print(f"  Nepal location: {', '.join(region_parts)}")
+            else:
+                print_field('place_guess', 'Location guess')
+
+            # Taxonomy hierarchy
+            taxon_keys = [
+                ('taxon_kingdom_name', 'Kingdom'),
+                ('taxon_phylum_name', 'Phylum'),
+                ('taxon_subphylum_name', 'Subphylum'),
+                ('taxon_superclass_name', 'Superclass'),
+                ('taxon_class_name', 'Class'),
+                ('taxon_subclass_name', 'Subclass'),
+                ('taxon_superorder_name', 'Superorder'),
+                ('taxon_order_name', 'Order'),
+                ('taxon_suborder_name', 'Suborder'),
+                ('taxon_superfamily_name', 'Superfamily'),
+                ('taxon_family_name', 'Family'),
+                ('taxon_subfamily_name', 'Subfamily'),
+                ('taxon_supertribe_name', 'Supertribe'),
+                ('taxon_tribe_name', 'Tribe'),
+                ('taxon_subtribe_name', 'Subtribe'),
+                ('taxon_genus_name', 'Genus'),
+                ('taxon_species_name', 'Species'),
+                ('taxon_subspecies_name', 'Subspecies'),
+                ('taxon_variety_name', 'Variety'),
+                ('taxon_form_name', 'Form'),
+            ]
+            printed_taxon = False
+            for key, label in taxon_keys:
+                if csv_meta.get(key) and str(csv_meta.get(key)).strip():
+                    if not printed_taxon:
+                        print("  Taxonomy:")
+                        printed_taxon = True
+                    print(f"    {label}: {csv_meta.get(key)}")
+
+            # Additional useful fields if present
+            print_field('id', 'Observation ID')
+            print_field('url', 'Observation URL')
+            print_field('image_url', 'Image URL')
+            print_field('time_zone', 'Time zone')
+            print_field('quality_grade', 'Quality grade')
+            print_field('captive_cultivated', 'Captive/cultivated')
+        else:
+            print("  No CSV metadata available for this match.")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
