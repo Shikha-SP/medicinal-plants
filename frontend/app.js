@@ -6,6 +6,10 @@ const analyzeBtn = document.getElementById("analyzeBtn");
 const clearBtn = document.getElementById("clearBtn");
 const statusLine = document.getElementById("status");
 const serverBadge = document.getElementById("serverBadge");
+const fileRecord = document.getElementById("fileRecord");
+const fileName = document.getElementById("fileName");
+const fileSize = document.getElementById("fileSize");
+const fileType = document.getElementById("fileType");
 const resultCard = document.getElementById("resultCard");
 const resultTitle = document.getElementById("resultTitle");
 const resultSubtitle = document.getElementById("resultSubtitle");
@@ -15,6 +19,7 @@ const confidenceBlock = document.getElementById("confidenceBlock");
 const confidenceValue = document.getElementById("confidenceValue");
 const confidenceLabel = document.getElementById("confidenceLabel");
 const confidenceMeter = document.getElementById("confidenceMeter");
+const emptyRecord = document.getElementById("emptyRecord");
 const metaList = document.getElementById("metaList");
 const otherMatches = document.getElementById("otherMatches");
 
@@ -24,6 +29,18 @@ const analyzeEndpoint =
 let selectedFile = null;
 let previewUrl = null;
 let isAnalyzing = false;
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "-";
+  }
+
+  const units = ["B", "KB", "MB", "GB"];
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** exponent;
+
+  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+}
 
 function setStatus(message, tone = "neutral") {
   statusLine.textContent = message;
@@ -50,10 +67,12 @@ function setBusy(nextValue) {
 
 function resetResultPanel() {
   resultCard.classList.add("result-panel-empty");
-  resultTitle.textContent = "No image selected";
-  resultSubtitle.textContent = "Results will show after analysis.";
+  resultCard.classList.remove("has-reference");
+  resultTitle.textContent = "No specimen loaded";
+  resultSubtitle.textContent = "Run analysis to create a plant record.";
   referenceWrap.hidden = true;
   confidenceBlock.hidden = true;
+  emptyRecord.hidden = false;
   confidenceMeter.style.width = "0%";
   metaList.replaceChildren();
   otherMatches.replaceChildren();
@@ -61,10 +80,12 @@ function resetResultPanel() {
 
 function showLoadingResult() {
   resultCard.classList.remove("result-panel-empty");
+  resultCard.classList.remove("has-reference");
   resultTitle.textContent = "Analyzing";
   resultSubtitle.textContent = "Checking the local plant index.";
   referenceWrap.hidden = true;
   confidenceBlock.hidden = true;
+  emptyRecord.hidden = true;
   metaList.replaceChildren();
   otherMatches.replaceChildren();
 }
@@ -81,6 +102,10 @@ function clearSelection() {
   preview.removeAttribute("src");
   preview.hidden = true;
   dropzoneText.hidden = false;
+  fileRecord.hidden = true;
+  fileName.textContent = "-";
+  fileSize.textContent = "-";
+  fileType.textContent = "-";
   setBusy(false);
   resetResultPanel();
   setStatus("No image selected.");
@@ -107,6 +132,10 @@ function chooseFile(file) {
   preview.src = previewUrl;
   preview.hidden = false;
   dropzoneText.hidden = true;
+  fileRecord.hidden = false;
+  fileName.textContent = file.name;
+  fileSize.textContent = formatBytes(file.size);
+  fileType.textContent = file.type || "image";
   setBusy(false);
   setStatus(`Selected: ${file.name}`);
 }
@@ -249,12 +278,15 @@ function renderResult(data) {
     referenceImage.src = metadata.image_url;
     referenceImage.alt = bestMatch.name ? `Reference image for ${bestMatch.name}` : "Reference plant";
     referenceWrap.hidden = false;
+    resultCard.classList.add("has-reference");
   } else {
     referenceWrap.hidden = true;
     referenceImage.removeAttribute("src");
+    resultCard.classList.remove("has-reference");
   }
 
   confidenceBlock.hidden = false;
+  emptyRecord.hidden = true;
   confidenceValue.textContent = hasConfidence ? `Confidence: ${confidencePercent.toFixed(1)}%` : "Confidence: n/a";
   confidenceLabel.textContent = bestMatch.confidence_label || "unknown";
   confidenceMeter.style.width = `${confidencePercent}%`;
@@ -297,7 +329,9 @@ async function analyzeSelectedFile() {
     resultTitle.textContent = "Analysis failed";
     resultSubtitle.textContent = "The image could not be processed.";
     referenceWrap.hidden = true;
+    resultCard.classList.remove("has-reference");
     confidenceBlock.hidden = true;
+    emptyRecord.hidden = true;
     metaList.replaceChildren(createMetaItem("Error", error.message));
     otherMatches.replaceChildren();
     setStatus(error.message, "error");
@@ -332,4 +366,5 @@ analyzeBtn.addEventListener("click", analyzeSelectedFile);
 clearBtn.addEventListener("click", clearSelection);
 referenceImage.addEventListener("error", () => {
   referenceWrap.hidden = true;
+  resultCard.classList.remove("has-reference");
 });
