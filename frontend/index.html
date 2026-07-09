@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Medicinal Plants Finder</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Medicinal Plants Finder</h1>
+      </div>
+      <div class="server-badge" id="serverBadge">Ready</div>
+    </header>
+
+    <main class="app-shell">
+      <section class="upload-panel" aria-labelledby="uploadTitle">
+        <div class="panel-heading">
+          <p class="eyebrow">Specimen image</p>
+          <h2 id="uploadTitle">Upload photo</h2>
+        </div>
+
+        <label class="dropzone" id="dropzone" for="imageInput">
+          <img id="preview" class="preview" alt="Selected plant preview" hidden />
+          <div class="dropzone-empty" id="dropzoneText">
+            <span class="upload-icon" aria-hidden="true"></span>
+            <strong>Select image</strong>
+            <span>JPG, PNG, WEBP, or TIFF</span>
+          </div>
+          <input id="imageInput" type="file" accept="image/*" />
+        </label>
+
+        <div class="actions">
+          <button class="primary-btn" id="analyzeBtn" type="button" disabled>
+            Analyze plant
+          </button>
+          <button class="ghost-btn" id="clearBtn" type="button" disabled>Clear</button>
+        </div>
+
+        <p class="status" id="status" aria-live="polite">
+          No image selected.
+        </p>
+      </section>
+
+      <section class="result-panel result-panel-empty" id="resultCard" aria-live="polite">
+        <div class="panel-heading">
+          <p class="eyebrow">Identification</p>
+          <h2 id="resultTitle">No image selected</h2>
+          <p id="resultSubtitle">Results will show after analysis.</p>
+        </div>
+
+        <div class="reference-wrap" id="referenceWrap" hidden>
+          <img id="referenceImage" class="reference-image" alt="Reference plant" />
+        </div>
+
+        <div class="confidence-block" id="confidenceBlock" hidden>
+          <div class="confidence-top">
+            <span id="confidenceValue">Confidence: n/a</span>
+            <span id="confidenceLabel">unknown</span>
+          </div>
+          <div class="confidence-meter" aria-hidden="true">
+            <span id="confidenceMeter"></span>
+          </div>
+        </div>
+
+        <div class="meta-list" id="metaList"></div>
+        <div class="match-list" id="otherMatches"></div>
+      </section>
+    </main>
+  </body>
+</html>

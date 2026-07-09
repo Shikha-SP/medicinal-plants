@@ -144,7 +144,50 @@ def get_first_value(meta, keys):
     return None
 
 
-def search_plant(image_path):
+def summarize_metadata(meta):
+    if not meta:
+        return {}
+
+    details = {}
+
+    scientific_name = get_first_value(meta, ['scientific_name', 'scientific name'])
+    common_name = get_first_value(meta, ['common_name', 'common name'])
+    description = get_first_value(meta, ['description'])
+    observation_url = get_first_value(meta, ['url'])
+    image_url = get_first_value(meta, ['image_url'])
+
+    if scientific_name:
+        details['scientific_name'] = scientific_name
+    if common_name:
+        details['common_name'] = common_name
+    if description:
+        details['description'] = description
+    if observation_url:
+        details['observation_url'] = observation_url
+    if image_url:
+        details['image_url'] = image_url
+
+    taxonomy = []
+    taxon_keys = [
+        ('taxon_kingdom_name', 'Kingdom'),
+        ('taxon_phylum_name', 'Phylum'),
+        ('taxon_class_name', 'Class'),
+        ('taxon_order_name', 'Order'),
+        ('taxon_family_name', 'Family'),
+        ('taxon_genus_name', 'Genus'),
+        ('taxon_species_name', 'Species'),
+    ]
+    for key, label in taxon_keys:
+        value = meta.get(key)
+        if value and str(value).strip():
+            taxonomy.append({'label': label, 'value': str(value).strip()})
+    if taxonomy:
+        details['taxonomy'] = taxonomy
+
+    return details
+
+
+def search_plant(image_path, verbose=True):
     image_path = copy_to_queries(image_path)
 
     img = Image.open(image_path).convert("RGB")
@@ -159,14 +202,13 @@ def search_plant(image_path):
     for i in range(len(indices[0])):
         idx = int(indices[0][i])
         dist = float(distances[0][i])
-        csv_meta = None
+        meta = None
         display_name = None
         if meta_list and 0 <= idx < len(meta_list):
             meta = meta_list[idx]
             display_name = meta.get('class') or (
                 image_class_names[idx] if idx < len(image_class_names) else None
             )
-            csv_meta = meta.get('csv_metadata')
         else:
             display_name = (
                 image_class_names[idx] if idx < len(image_class_names) else f"Unknown (index {idx})"
@@ -174,60 +216,57 @@ def search_plant(image_path):
 
         conf_pct = fmt_confidence(dist)
         confidence_label = fmt_confidence_label(conf_pct)
-        matches.append((i + 1, display_name, conf_pct, confidence_label, idx, dist, csv_meta))
+        match_payload = {
+            'rank': i + 1,
+            'name': display_name,
+            'confidence': round(conf_pct, 1),
+            'confidence_label': confidence_label,
+            'index': idx,
+            'distance': round(dist, 6),
+            'metadata': summarize_metadata(meta.get('csv_metadata') if meta else None),
+        }
+        matches.append(match_payload)
 
-    best_rank, best_name, best_conf, best_label, best_idx, best_dist, best_meta = matches[0]
+    result = {
+        'image_path': image_path,
+        'best_match': matches[0],
+        'other_matches': matches[1:],
+    }
 
-    print("")
-    print("")
-    print(f"Best match: {best_name} ({best_conf:.1f}% confidence, {best_label})")
-    print("")
+    if verbose:
+        best_match = result['best_match']
+        print("")
+        print("")
+        print(f"Best match: {best_match['name']} ({best_match['confidence']:.1f}% confidence, {best_match['confidence_label']})")
+        print("")
 
-    if best_meta:
-        scientific_name = get_first_value(best_meta, ['scientific_name', 'scientific name'])
-        common_name = get_first_value(best_meta, ['common_name', 'common name'])
-        if scientific_name:
-            print(f"Scientific name: {scientific_name}")
-        if common_name:
-            print(f"Common name: {common_name}")
+        metadata = best_match.get('metadata', {})
+        if metadata:
+            if metadata.get('scientific_name'):
+                print(f"Scientific name: {metadata['scientific_name']}")
+            if metadata.get('common_name'):
+                print(f"Common name: {metadata['common_name']}")
+            if metadata.get('description'):
+                print(f"Notes: {metadata['description']}")
+            if metadata.get('taxonomy'):
+                taxonomy_text = ' > '.join(f"{item['label']}: {item['value']}" for item in metadata['taxonomy'])
+                print()
+                print(f"Taxonomy: {taxonomy_text}")
+            if metadata.get('observation_url'):
+                print()
+                print(f"Observation: {metadata['observation_url']}")
+            if metadata.get('image_url'):
+                print(f"Image: {metadata['image_url']}")
+        else:
+            print("No additional metadata available for this match.")
 
-        description = get_first_value(best_meta, ['description'])
-        if description:
-            print(f"Notes: {description}")
-
-        taxon_parts = []
-        taxon_keys = [
-            ('taxon_kingdom_name', 'Kingdom'),
-            ('taxon_phylum_name', 'Phylum'),
-            ('taxon_class_name', 'Class'),
-            ('taxon_order_name', 'Order'),
-            ('taxon_family_name', 'Family'),
-            ('taxon_genus_name', 'Genus'),
-            ('taxon_species_name', 'Species'),
-        ]
-        for key, label in taxon_keys:
-            value = best_meta.get(key)
-            if value and str(value).strip():
-                taxon_parts.append(f"{label}: {str(value).strip()}")
-        if taxon_parts:
+        if len(matches) > 1:
             print()
-            print(f"Taxonomy: {' > '.join(taxon_parts)}")
+            print("Other possible matches:")
+            for match in matches[1:]:
+                print(f"  - {match['name']} ({match['confidence']:.1f}% confidence, {match['confidence_label']})")
 
-        observation_url = get_first_value(best_meta, ['url'])
-        image_url = get_first_value(best_meta, ['image_url'])
-        print()
-        if observation_url:
-            print(f"Observation: {observation_url}")
-        if image_url:
-            print(f"Image: {image_url}")
-    else:
-        print("No additional metadata available for this match.")
-
-    if len(matches) > 1:
-        print()
-        print("Other possible matches:")
-        for rank, display_name, conf_pct, confidence_label, idx, dist, csv_meta in matches[1:]:
-            print(f"  - {display_name} ({conf_pct:.1f}% confidence, {confidence_label})")
+    return result
 
 
 if __name__ == "__main__":
