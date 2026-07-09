@@ -47,14 +47,17 @@ function setStatus(message, tone = "neutral") {
   statusLine.dataset.tone = tone;
 
   if (tone === "loading") {
-    serverBadge.textContent = "Analyzing";
+    serverBadge.textContent = "Checking";
     serverBadge.dataset.tone = "loading";
   } else if (tone === "error") {
-    serverBadge.textContent = "Check";
+    serverBadge.textContent = "Need image";
     serverBadge.dataset.tone = "error";
+  } else if (tone === "success") {
+    serverBadge.textContent = "Match found";
+    serverBadge.dataset.tone = "success";
   } else {
-    serverBadge.textContent = "Ready";
-    serverBadge.dataset.tone = tone === "success" ? "success" : "neutral";
+    serverBadge.textContent = "Waiting";
+    serverBadge.dataset.tone = "neutral";
   }
 }
 
@@ -108,7 +111,7 @@ function clearSelection() {
   fileType.textContent = "-";
   setBusy(false);
   resetResultPanel();
-  setStatus("No image selected.");
+  setStatus("Insert an image to begin.");
 }
 
 function chooseFile(file) {
@@ -137,7 +140,7 @@ function chooseFile(file) {
   fileSize.textContent = formatBytes(file.size);
   fileType.textContent = file.type || "image";
   setBusy(false);
-  setStatus(`Selected: ${file.name}`);
+  setStatus(`Image ready: ${file.name}`);
 }
 
 function createMetaItem(label, value) {
