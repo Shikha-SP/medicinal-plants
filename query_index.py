@@ -34,7 +34,6 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
 ])
 
-# load model (same logic as vectorization)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 try:
     model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
@@ -47,7 +46,6 @@ except Exception:
     model.to(device)
     model.eval()
 
-# prepare query vector
 img = Image.open(query_path).convert('RGB')
 img_t = transform(img).unsqueeze(0).to(device)
 with torch.no_grad():
@@ -56,10 +54,8 @@ with torch.no_grad():
         vec = vec.reshape(vec.shape[0], -1)
     vec = vec.astype('float32')
 
-# normalize same as during indexing
 faiss.normalize_L2(vec)
 
-# load index and meta
 index = faiss.read_index(INDEX_PATH)
 with open(META_PATH, 'r', encoding='utf-8') as f:
     meta_list = json.load(f)
@@ -73,7 +69,6 @@ for dist, idx in zip(D[0], I[0]):
     if idx < 0:
         continue
     meta = meta_list[idx]
-    # convert distance to a simple score in (0,1]
     score = 1.0 / (1.0 + float(dist))
     print('-' * 60)
     print(f"Rank score: {score:.3f}   distance: {dist:.6f}   dataset_index: {idx}")
@@ -82,7 +77,6 @@ for dist, idx in zip(D[0], I[0]):
     csv_meta = meta.get('csv_metadata')
     if csv_meta:
         print('CSV metadata:')
-        # print a few fields
         for kf, vf in csv_meta.items():
             print(f"  {kf}: {vf}")
     else:

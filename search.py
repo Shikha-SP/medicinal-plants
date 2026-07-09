@@ -1,15 +1,21 @@
-﻿import os
+﻿import io
+import os
 import json
 import shutil
 import sys
+import warnings
+from contextlib import redirect_stderr, redirect_stdout
 
 import faiss
 import torch
 from PIL import Image
 from torchvision import transforms
 
+warnings.filterwarnings("ignore", message="xFormers is not available.*")
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
+with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+    model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
 model.to(device)
 model.eval()
 
@@ -25,11 +31,14 @@ META_FILE = "plant_database_meta.json"
 QUERY_DIR = "queries"
 VALID_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".ppm", ".pgm", ".tif", ".tiff", ".webp"}
 
+
 def is_image_file(filename):
     return os.path.splitext(filename.lower())[1] in VALID_EXTS
 
+
 def ensure_query_dir():
     os.makedirs(QUERY_DIR, exist_ok=True)
+
 
 def get_latest_query_image():
     ensure_query_dir()
@@ -39,6 +48,7 @@ def get_latest_query_image():
         if os.path.isfile(os.path.join(QUERY_DIR, name)) and is_image_file(name)
     ]
     return max(candidates, key=os.path.getmtime) if candidates else None
+
 
 def copy_to_queries(image_path):
     ensure_query_dir()
@@ -67,6 +77,7 @@ def copy_to_queries(image_path):
         shutil.copy2(image_path, destination)
     return destination
 
+
 def build_image_class_names(dataset_root="dataset", mapping_file=MAPPING_FILE):
     if os.path.exists(mapping_file):
         with open(mapping_file, "r", encoding="utf-8") as f:
@@ -87,9 +98,9 @@ def build_image_class_names(dataset_root="dataset", mapping_file=MAPPING_FILE):
         json.dump(image_class_names, f, ensure_ascii=False)
     return image_class_names
 
+
 image_class_names = build_image_class_names()
 
-# load metadata produced by vectorization.py if available
 meta_list = None
 if os.path.exists(META_FILE):
     try:
@@ -98,39 +109,49 @@ if os.path.exists(META_FILE):
     except Exception as e:
         print(f"Warning: failed to load {META_FILE}: {e}")
 
+
+def fmt_confidence(dist_val):
+    try:
+        conf = max(0.0, min(100.0, (1.0 - float(dist_val)) * 100.0))
+    except Exception:
+        conf = 0.0
+    return conf
+
+
+def fmt_confidence_label(conf_pct):
+    if conf_pct >= 90:
+        return "very high"
+    if conf_pct >= 75:
+        return "high"
+    if conf_pct >= 55:
+        return "moderate"
+    if conf_pct >= 35:
+        return "low"
+    return "very low"
+
+
+def get_first_value(meta, keys):
+    if not meta:
+        return None
+    for key in keys:
+        value = meta.get(key)
+        if value is not None and str(value).strip() != "":
+            return str(value).strip()
+    return None
+
+
 def search_plant(image_path):
     image_path = copy_to_queries(image_path)
-    print(f"[search] Loading image: {image_path}")
+
     img = Image.open(image_path).convert("RGB")
     img_tensor = transform(img).unsqueeze(0).to(device)
-    print("[search] Extracting features")
     with torch.no_grad():
         vector = model(img_tensor).cpu().numpy().astype("float32")
     vector = vector.reshape(vector.shape[0], -1)
-    print("[search] Normalizing query vector")
     faiss.normalize_L2(vector)
-    print("[search] Searching database")
     distances, indices = index.search(vector, 3)
-    print(f"\n--- Search Results for {image_path} ---")
-    # preferred fields to display if present in CSV
-    preferred_fields = [
-        'scientific_name', 'scientific name', 'class', 'species', 'genus', 'family', 'order', 'phylum', 'kingdom',
-        'common_name', 'common name', 'vernacular_name', 'vernacular name', 'description', 'medicinal_uses',
-        'area_in_nepal', 'area', 'location', 'habitat', 'id', 'url'
-    ]
 
-    def fmt_confidence(dist_val):
-        # Map distance to (1 - dist) as requested, then to percentage
-        try:
-            conf = (1.0 - float(dist_val)) * 100.0
-        except Exception:
-            conf = 0.0
-        if conf < 0:
-            conf = 0.0
-        if conf > 100:
-            conf = 100.0
-        return conf
-
+    matches = []
     for i in range(len(indices[0])):
         idx = int(indices[0][i])
         dist = float(distances[0][i])
@@ -138,80 +159,71 @@ def search_plant(image_path):
         display_name = None
         if meta_list and 0 <= idx < len(meta_list):
             meta = meta_list[idx]
-            display_name = meta.get('class') or (image_class_names[idx] if idx < len(image_class_names) else None)
+            display_name = meta.get('class') or (
+                image_class_names[idx] if idx < len(image_class_names) else None
+            )
             csv_meta = meta.get('csv_metadata')
         else:
-            display_name = image_class_names[idx] if idx < len(image_class_names) else f"Unknown(index {idx})"
+            display_name = (
+                image_class_names[idx] if idx < len(image_class_names) else f"Unknown (index {idx})"
+            )
 
         conf_pct = fmt_confidence(dist)
-        print(f"Match {i+1}: {display_name} (Index {idx}, Distance: {dist:.4f}, Confidence: {conf_pct:.1f}% )")
+        confidence_label = fmt_confidence_label(conf_pct)
+        matches.append((i + 1, display_name, conf_pct, confidence_label, idx, dist, csv_meta))
 
-        if csv_meta:
-            # Display the fields that exist in your CSV dataset.
-            def print_field(key, label=None):
-                value = csv_meta.get(key)
-                if value is None or str(value).strip() == "":
-                    return
-                print(f"  {label or key}: {value}")
+    best_rank, best_name, best_conf, best_label, best_idx, best_dist, best_meta = matches[0]
 
-            # Primary plant identity fields
-            print_field('scientific_name', 'Scientific name')
-            print_field('common_name', 'Common name')
-            print_field('iconic_taxon_name', 'Iconic taxon')
-            print_field('taxon_id', 'Taxon ID')
-            print_field('description', 'Description')
+    print()
+    print(f"Best match: {best_name} ({best_conf:.1f}% confidence, {best_label})")
+    print()
 
-            # Nepal location / region fields
-            region_parts = []
-            for key in ['place_town_name', 'place_county_name', 'place_state_name', 'place_country_name']:
-                value = csv_meta.get(key)
-                if value and str(value).strip():
-                    region_parts.append(str(value).strip())
-            if region_parts:
-                print(f"  Nepal location: {', '.join(region_parts)}")
-            else:
-                print_field('place_guess', 'Location guess')
+    if best_meta:
+        scientific_name = get_first_value(best_meta, ['scientific_name', 'scientific name'])
+        common_name = get_first_value(best_meta, ['common_name', 'common name'])
+        if scientific_name:
+            print(f"Scientific name: {scientific_name}")
+        if common_name:
+            print(f"Common name: {common_name}")
 
-            # Taxonomy hierarchy
-            taxon_keys = [
-                ('taxon_kingdom_name', 'Kingdom'),
-                ('taxon_phylum_name', 'Phylum'),
-                ('taxon_subphylum_name', 'Subphylum'),
-                ('taxon_superclass_name', 'Superclass'),
-                ('taxon_class_name', 'Class'),
-                ('taxon_subclass_name', 'Subclass'),
-                ('taxon_superorder_name', 'Superorder'),
-                ('taxon_order_name', 'Order'),
-                ('taxon_suborder_name', 'Suborder'),
-                ('taxon_superfamily_name', 'Superfamily'),
-                ('taxon_family_name', 'Family'),
-                ('taxon_subfamily_name', 'Subfamily'),
-                ('taxon_supertribe_name', 'Supertribe'),
-                ('taxon_tribe_name', 'Tribe'),
-                ('taxon_subtribe_name', 'Subtribe'),
-                ('taxon_genus_name', 'Genus'),
-                ('taxon_species_name', 'Species'),
-                ('taxon_subspecies_name', 'Subspecies'),
-                ('taxon_variety_name', 'Variety'),
-                ('taxon_form_name', 'Form'),
-            ]
-            printed_taxon = False
-            for key, label in taxon_keys:
-                if csv_meta.get(key) and str(csv_meta.get(key)).strip():
-                    if not printed_taxon:
-                        print("  Taxonomy:")
-                        printed_taxon = True
-                    print(f"    {label}: {csv_meta.get(key)}")
+        description = get_first_value(best_meta, ['description'])
+        if description:
+            print(f"Notes: {description}")
 
-            # Additional useful fields if present
-            print_field('id', 'Observation ID')
-            print_field('url', 'Observation URL')
-            print_field('image_url', 'Image URL')
-            print_field('time_zone', 'Time zone')
-            print_field('quality_grade', 'Quality grade')
-            print_field('captive_cultivated', 'Captive/cultivated')
-        else:
-            print("  No CSV metadata available for this match.")
+        taxon_parts = []
+        taxon_keys = [
+            ('taxon_kingdom_name', 'Kingdom'),
+            ('taxon_phylum_name', 'Phylum'),
+            ('taxon_class_name', 'Class'),
+            ('taxon_order_name', 'Order'),
+            ('taxon_family_name', 'Family'),
+            ('taxon_genus_name', 'Genus'),
+            ('taxon_species_name', 'Species'),
+        ]
+        for key, label in taxon_keys:
+            value = best_meta.get(key)
+            if value and str(value).strip():
+                taxon_parts.append(f"{label}: {str(value).strip()}")
+        if taxon_parts:
+            print()
+            print(f"Taxonomy: {' > '.join(taxon_parts)}")
+
+        observation_url = get_first_value(best_meta, ['url'])
+        image_url = get_first_value(best_meta, ['image_url'])
+        print()
+        if observation_url:
+            print(f"Observation: {observation_url}")
+        if image_url:
+            print(f"Image: {image_url}")
+    else:
+        print("No additional metadata available for this match.")
+
+    if len(matches) > 1:
+        print()
+        print("Other possible matches:")
+        for rank, display_name, conf_pct, confidence_label, idx, dist, csv_meta in matches[1:]:
+            print(f"  - {display_name} ({conf_pct:.1f}% confidence, {confidence_label})")
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

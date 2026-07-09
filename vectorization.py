@@ -68,7 +68,6 @@ print(f"[vectorization] Found {len(dataset)} images across {len(dataset.classes)
 print(f"[vectorization] Batch size={dataloader.batch_size}, total batches={len(dataloader)}")
 
 
-# Build metadata list aligned with dataset.samples order
 meta_list = []
 
 csv_rows = []
@@ -83,7 +82,6 @@ if os.path.exists(csv_path):
         print(f"Warning: failed to read {csv_path}:", e)
 
 
-# Preprocess CSV into a lookup dict for fast exact-match by normalized names
 def _norm(s: str) -> str:
     return s.strip().lower().replace('_', ' ')
 
@@ -93,7 +91,6 @@ for r in csv_rows:
         if not v:
             continue
         key = _norm(str(v))
-        # keep first occurrence for a key
         if key not in lookup_dict:
             lookup_dict[key] = r
 
@@ -102,7 +99,6 @@ def find_csv_for_class(class_name):
     key = _norm(class_name)
     if key in lookup_dict:
         return lookup_dict[key]
-    # Fallback: substring scan (slower) if no exact normalized match
     for r in csv_rows:
         for v in r.values():
             if not v:
@@ -134,7 +130,6 @@ with torch.no_grad():
             print("[vectorization] Model forward pass failed:", e)
             sys.exit(1)
         arr = vectors.cpu().numpy()
-        # flatten if necessary (e.g., ResNet output is [B, C, 1, 1])
         if arr.ndim > 2:
             arr = arr.reshape(arr.shape[0], -1)
         all_vectors.append(arr)
@@ -160,7 +155,6 @@ index.add(all_vectors)
 faiss.write_index(index, "plant_database.index")
 print("[vectorization] Index saved to plant_database.index")
 
-# Save metadata so search can join vectors -> descriptions
 try:
     with open('plant_database_meta.json', 'w', encoding='utf-8') as f:
         json.dump(meta_list, f, ensure_ascii=False, indent=2)
