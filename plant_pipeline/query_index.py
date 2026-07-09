@@ -14,8 +14,10 @@ except ModuleNotFoundError as e:
     sys.exit(1)
 
 
-INDEX_PATH = 'plant_database.index'
-META_PATH = 'plant_database_meta.json'
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(ROOT_DIR, 'data')
+INDEX_PATH = os.path.join(DATA_DIR, 'plant_database.index')
+META_PATH = os.path.join(DATA_DIR, 'plant_database_meta.json')
 
 if not os.path.exists(INDEX_PATH) or not os.path.exists(META_PATH):
     print('Index or metadata not found. Run vectorization.py first.')

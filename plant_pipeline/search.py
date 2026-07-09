@@ -13,6 +13,14 @@ from torchvision import transforms
 
 warnings.filterwarnings("ignore", message="xFormers is not available.*")
 
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+INDEX_PATH = os.path.join(DATA_DIR, "plant_database.index")
+MAPPING_FILE = os.path.join(DATA_DIR, "dataset_image_labels.json")
+META_FILE = os.path.join(DATA_DIR, "plant_database_meta.json")
+QUERY_DIR = os.path.join(DATA_DIR, "queries")
+VALID_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".ppm", ".pgm", ".tif", ".tiff", ".webp"}
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
     model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
@@ -25,11 +33,7 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
 ])
 
-index = faiss.read_index("plant_database.index")
-MAPPING_FILE = "dataset_image_labels.json"
-META_FILE = "plant_database_meta.json"
-QUERY_DIR = "queries"
-VALID_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".ppm", ".pgm", ".tif", ".tiff", ".webp"}
+index = faiss.read_index(INDEX_PATH)
 
 
 def is_image_file(filename):
@@ -78,7 +82,7 @@ def copy_to_queries(image_path):
     return destination
 
 
-def build_image_class_names(dataset_root="dataset", mapping_file=MAPPING_FILE):
+def build_image_class_names(dataset_root=os.path.join(DATA_DIR, "dataset"), mapping_file=MAPPING_FILE):
     if os.path.exists(mapping_file):
         with open(mapping_file, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -174,9 +178,10 @@ def search_plant(image_path):
 
     best_rank, best_name, best_conf, best_label, best_idx, best_dist, best_meta = matches[0]
 
-    print()
+    print("")
+    print("")
     print(f"Best match: {best_name} ({best_conf:.1f}% confidence, {best_label})")
-    print()
+    print("")
 
     if best_meta:
         scientific_name = get_first_value(best_meta, ['scientific_name', 'scientific name'])
@@ -236,3 +241,5 @@ if __name__ == "__main__":
         else:
             print(f"No path provided, using latest query image: {latest_query}")
             search_plant(latest_query)
+    print("")
+    print("")

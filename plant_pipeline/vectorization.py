@@ -18,8 +18,15 @@ except ModuleNotFoundError as e:
     sys.exit(1)
 
 
-if not os.path.exists('dataset'):
-    print("Dataset folder 'dataset' not found. Please create it with subfolders per class.")
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+DATASET_DIR = os.path.join(DATA_DIR, "dataset")
+CSV_PATH = os.path.join(DATA_DIR, "raw_observations.csv")
+INDEX_PATH = os.path.join(DATA_DIR, "plant_database.index")
+META_PATH = os.path.join(DATA_DIR, "plant_database_meta.json")
+
+if not os.path.exists(DATASET_DIR):
+    print("Dataset folder 'data/dataset' not found. Please create it with subfolders per class.")
     sys.exit(1)
 
 
@@ -55,7 +62,7 @@ transform = transforms.Compose([
 ])
 
 
-dataset = datasets.ImageFolder("dataset", transform=transform)
+dataset = datasets.ImageFolder(DATASET_DIR, transform=transform)
 if len(dataset) == 0:
     print("No images found in 'dataset'.")
     sys.exit(1)
@@ -71,7 +78,7 @@ print(f"[vectorization] Batch size={dataloader.batch_size}, total batches={len(d
 meta_list = []
 
 csv_rows = []
-csv_path = 'raw_observations.csv'
+csv_path = CSV_PATH
 if os.path.exists(csv_path):
     try:
         with open(csv_path, newline='', encoding='utf-8') as f:
@@ -152,13 +159,13 @@ faiss.normalize_L2(all_vectors)
 index = faiss.IndexFlatL2(all_vectors.shape[1])
 print(f"[vectorization] Adding {all_vectors.shape[0]} vectors to index")
 index.add(all_vectors)
-faiss.write_index(index, "plant_database.index")
-print("[vectorization] Index saved to plant_database.index")
+faiss.write_index(index, INDEX_PATH)
+print(f"[vectorization] Index saved to {INDEX_PATH}")
 
 try:
-    with open('plant_database_meta.json', 'w', encoding='utf-8') as f:
+    with open(META_PATH, 'w', encoding='utf-8') as f:
         json.dump(meta_list, f, ensure_ascii=False, indent=2)
-    print("[vectorization] Saved metadata to plant_database_meta.json")
+    print(f"[vectorization] Saved metadata to {META_PATH}")
 except Exception as e:
     print("[vectorization] Failed to save metadata:", e)
 

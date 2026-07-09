@@ -6,16 +6,21 @@ try:
     import requests
     from concurrent.futures import ThreadPoolExecutor
 except ModuleNotFoundError as e:
-    print(f"Missing required package: {e.name}. Install dependencies with: pip install -r requirements.txt")
+    print(f"Missing required package: {e.name}. Install it with: pip install pandas requests")
     sys.exit(1)
+
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(ROOT_DIR, 'data')
+DATASET_DIR = os.path.join(DATA_DIR, 'dataset')
+CSV_PATH = os.path.join(DATA_DIR, 'raw_observations.csv')
 
 counter = 0
 counter_lock = threading.Lock()
 
 def get_existing_file_count():
     count = 0
-    if os.path.exists('dataset'):
-        for root, dirs, files in os.walk('dataset'):
+    if os.path.exists(DATASET_DIR):
+        for root, dirs, files in os.walk(DATASET_DIR):
             count += len([f for f in files if f.endswith('.jpg')])
     return count
 
@@ -26,7 +31,7 @@ def download_single_image(row, total_rows):
     url = row['image_url']
     if pd.isna(url): return None
     
-    species_dir = os.path.join('dataset', species)
+    species_dir = os.path.join(DATASET_DIR, species)
     os.makedirs(species_dir, exist_ok=True)
     file_path = os.path.join(species_dir, f"{row['id']}.jpg")
     
@@ -58,4 +63,4 @@ def download_images(csv_path):
     print("Download process complete.")
 
 if __name__ == "__main__":
-    download_images('raw_observations.csv')
+    download_images(CSV_PATH)
