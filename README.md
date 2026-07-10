@@ -87,7 +87,7 @@ medicinal-plants/
 
 | Member | Role |
 |---|---|
-| Triza Shashankar | RAG Pipeline + FastAPI Backend + Frontend Integration + Deployment |
+| Triza Shashankar | RAG Pipeline + FastAPI Backend |
 | Sikha | ML Model (DINOv2 + FAISS) + Dataset + Plant Pipeline |
 
 
