@@ -23,22 +23,21 @@ const emptyRecord = document.getElementById("emptyRecord");
 const metaList = document.getElementById("metaList");
 const otherMatches = document.getElementById("otherMatches");
 
+// ── Updated endpoint to connect to your FastAPI ──
 const analyzeEndpoint =
-  window.location.protocol === "file:" ? "http://127.0.0.1:8000/analyze" : "analyze";
+  window.location.protocol === "file:"
+    ? "http://127.0.0.1:8000/identify"
+    : "/identify";
 
 let selectedFile = null;
 let previewUrl = null;
 let isAnalyzing = false;
 
 function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) {
-    return "-";
-  }
-
+  if (!Number.isFinite(bytes) || bytes <= 0) return "-";
   const units = ["B", "KB", "MB", "GB"];
   const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
   const value = bytes / 1024 ** exponent;
-
   return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 }
 
@@ -85,7 +84,7 @@ function showLoadingResult() {
   resultCard.classList.remove("result-panel-empty");
   resultCard.classList.remove("has-reference");
   resultTitle.textContent = "Analyzing";
-  resultSubtitle.textContent = "Checking the local plant index.";
+  resultSubtitle.textContent = "Identifying plant and retrieving medicinal information...";
   referenceWrap.hidden = true;
   confidenceBlock.hidden = true;
   emptyRecord.hidden = true;
@@ -115,9 +114,7 @@ function clearSelection() {
 }
 
 function chooseFile(file) {
-  if (!file) {
-    return;
-  }
+  if (!file) return;
 
   if (!file.type.startsWith("image/")) {
     clearSelection();
@@ -127,9 +124,7 @@ function chooseFile(file) {
 
   selectedFile = file;
 
-  if (previewUrl) {
-    URL.revokeObjectURL(previewUrl);
-  }
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
 
   previewUrl = URL.createObjectURL(file);
   preview.src = previewUrl;
@@ -184,44 +179,63 @@ function createLinkItem(label, url, text) {
   return item;
 }
 
+// ── Map your FastAPI response to the existing UI ──────────
+function mapApiResponseToUI(data) {
+  const report = data.report || {};
+  const confidencePercent = Math.round((data.confidence || 0) * 100);
+
+  return {
+    best_match: {
+      name: report.plant_name || data.ml_prediction || "Unknown",
+      confidence: confidencePercent,
+      confidence_label: confidencePercent >= 75 ? "high" : confidencePercent >= 50 ? "moderate" : "low",
+      metadata: {
+        scientific_name: report.latin_name || "",
+        common_name: report.plant_name || "",
+        nepali_name: report.nepali_name || "",
+        medicinal_uses: report.medicinal_uses || "",
+        traditional_use: report.traditional_use || "",
+        safety: report.safety || "",
+        safety_note: report.safety_note || "",
+        location_in_nepal: report.location_in_nepal || "",
+        source: report.source || (data.report_source === "knowledge_base" ? "Wikipedia via knowledge base" : "General knowledge"),
+        observation_url: null,
+        image_url: null,
+      },
+    },
+    other_matches: [],
+  };
+}
+
 function renderMetadata(metadata) {
   const items = [];
 
-  if (metadata.scientific_name) {
-    items.push(createMetaItem("Scientific name", metadata.scientific_name));
-  }
+  const fields = [
+    { label: "Scientific name", value: metadata.scientific_name },
+    { label: "Common name", value: metadata.common_name },
+    { label: "Nepali name", value: metadata.nepali_name },
+    { label: "Medicinal uses", value: metadata.medicinal_uses },
+    { label: "Traditional use in Nepal", value: metadata.traditional_use },
+    { label: "Safety", value: metadata.safety },
+    { label: "Safety note", value: metadata.safety_note },
+    { label: "Found in Nepal", value: metadata.location_in_nepal },
+    { label: "Source", value: metadata.source },
+  ];
 
-  if (metadata.common_name) {
-    items.push(createMetaItem("Common name", metadata.common_name));
-  }
-
-  if (metadata.description) {
-    items.push(createMetaItem("Description", metadata.description));
-  }
-
-  if (Array.isArray(metadata.taxonomy) && metadata.taxonomy.length > 0) {
-    const taxonomy = metadata.taxonomy
-      .filter((item) => item && item.label && item.value)
-      .map((item) => `${item.label}: ${item.value}`)
-      .join(" > ");
-
-    if (taxonomy) {
-      items.push(createMetaItem("Taxonomy", taxonomy));
+  fields.forEach(({ label, value }) => {
+    if (value && value.trim() !== "") {
+      items.push(createMetaItem(label, value));
     }
-  }
+  });
 
   if (metadata.observation_url) {
     const linkItem = createLinkItem("Observation", metadata.observation_url, "Open observation");
-    if (linkItem) {
-      items.push(linkItem);
-    }
+    if (linkItem) items.push(linkItem);
   }
 
   if (metadata.image_url) {
     const linkItem = createLinkItem("Reference image", metadata.image_url, "Open image");
-    if (linkItem) {
-      items.push(linkItem);
-    }
+    if (linkItem) items.push(linkItem);
   }
 
   metaList.replaceChildren(
@@ -234,9 +248,7 @@ function renderMetadata(metadata) {
 function renderOtherMatches(matches) {
   otherMatches.replaceChildren();
 
-  if (!Array.isArray(matches) || matches.length === 0) {
-    return;
-  }
+  if (!Array.isArray(matches) || matches.length === 0) return;
 
   const heading = document.createElement("h3");
   heading.textContent = "Other possible matches";
@@ -267,7 +279,10 @@ function renderOtherMatches(matches) {
 }
 
 function renderResult(data) {
-  const bestMatch = data.best_match || {};
+  // ── Map your FastAPI response to UI format ──
+  const mapped = mapApiResponseToUI(data);
+
+  const bestMatch = mapped.best_match || {};
   const metadata = bestMatch.metadata || {};
   const confidence = Number(bestMatch.confidence);
   const hasConfidence = Number.isFinite(confidence);
@@ -275,18 +290,11 @@ function renderResult(data) {
 
   resultCard.classList.remove("result-panel-empty");
   resultTitle.textContent = bestMatch.name || "No match found";
-  resultSubtitle.textContent = "Best match from your local plant image index.";
+  resultSubtitle.textContent = "Best match from Nepal medicinal plant knowledge base.";
 
-  if (metadata.image_url) {
-    referenceImage.src = metadata.image_url;
-    referenceImage.alt = bestMatch.name ? `Reference image for ${bestMatch.name}` : "Reference plant";
-    referenceWrap.hidden = false;
-    resultCard.classList.add("has-reference");
-  } else {
-    referenceWrap.hidden = true;
-    referenceImage.removeAttribute("src");
-    resultCard.classList.remove("has-reference");
-  }
+  referenceWrap.hidden = true;
+  referenceImage.removeAttribute("src");
+  resultCard.classList.remove("has-reference");
 
   confidenceBlock.hidden = false;
   emptyRecord.hidden = true;
@@ -295,16 +303,16 @@ function renderResult(data) {
   confidenceMeter.style.width = `${confidencePercent}%`;
 
   renderMetadata(metadata);
-  renderOtherMatches(data.other_matches);
+  renderOtherMatches(mapped.other_matches);
 }
 
+// ── Main analyze function ─────────────────────────────────
 async function analyzeSelectedFile() {
-  if (!selectedFile || isAnalyzing) {
-    return;
-  }
+  if (!selectedFile || isAnalyzing) return;
 
   const formData = new FormData();
-  formData.append("image", selectedFile);
+  // ── Changed key from "image" to "file" to match your FastAPI ──
+  formData.append("file", selectedFile);
 
   setBusy(true);
   showLoadingResult();
@@ -322,7 +330,20 @@ async function analyzeSelectedFile() {
       : { error: await response.text() };
 
     if (!response.ok) {
-      throw new Error(payload.error || "Analysis failed.");
+      throw new Error(payload.detail || payload.error || "Analysis failed.");
+    }
+
+    // ── Handle low confidence response ──
+    if (payload.success === false) {
+      resultCard.classList.remove("result-panel-empty");
+      resultTitle.textContent = "Plant not identified";
+      resultSubtitle.textContent = payload.message || "Please try a clearer photo.";
+      confidenceBlock.hidden = true;
+      emptyRecord.hidden = true;
+      metaList.replaceChildren(createMetaItem("Tip", "Try a clearer, well-lit photo of the plant."));
+      otherMatches.replaceChildren();
+      setStatus(payload.message || "Could not identify plant.", "error");
+      return;
     }
 
     renderResult(payload);
@@ -343,6 +364,7 @@ async function analyzeSelectedFile() {
   }
 }
 
+// ── Event listeners ───────────────────────────────────────
 imageInput.addEventListener("change", (event) => {
   chooseFile(event.target.files?.[0]);
 });

@@ -44,3 +44,11 @@ dataset_image_labels.json
 queries/
 dataset/
 
+# Environment variables
+.env
+
+# ChromaDB vector database
+data/chroma_db/
+
+# FAISS index
+data/plant_database.index
