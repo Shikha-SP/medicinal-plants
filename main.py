@@ -212,7 +212,7 @@ Return JSON with exactly these fields:
     "medicinal_uses": "uses from source, 2-3 sentences",
     "safety": "SAFE or USE WITH CAUTION or TOXIC",
     "safety_note": "brief safety info from source",
-    "location_in_nepal": "location in Nepal from source",
+    "location_in_nepal": "where this plant grows in Nepal — mention specific regions like Terai, Mid-hills, High Himalaya, or specific districts if known. If exact Nepal location unknown, state the general altitude or climate zone where it grows",
     "traditional_use": "traditional Nepali use from source",
     "source": "Wikipedia via knowledge base"
 }}
@@ -250,7 +250,7 @@ Return JSON with exactly these fields:
     "medicinal_uses": "main medicinal uses, 2-3 sentences",
     "safety": "SAFE or USE WITH CAUTION or TOXIC",
     "safety_note": "brief safety explanation",
-    "location_in_nepal": "where found in Nepal",
+    "location_in_nepal": "where this plant grows in Nepal — mention specific regions like Terai, Mid-hills, High Himalaya, or specific districts if known. If exact Nepal location unknown, state the general altitude or climate zone where it grows",
     "traditional_use": "use in traditional Nepali medicine",
     "source": "state the source of this information e.g. Ayurvedic texts, WHO monographs, traditional Nepali medicine knowledge, etc."
 }}
