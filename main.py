@@ -197,27 +197,25 @@ def generate_plant_report(plant_name: str, common_name: str, context: str) -> di
     """Generate report grounded in ChromaDB retrieved context."""
     display_name = plant_name.replace('_', ' ')
 
-    prompt = f"""You are a Nepal medicinal plant expert. Use ONLY the information provided below to answer. Do not add information not present in the source.
+    prompt = f"""You are a Nepal medicinal plant expert. Use the information below to answer about {display_name} (common name: {common_name}).
 
-Plant: {display_name} (Common name: {common_name})
-
-Source:
+Source information:
 {context}
 
-Return JSON with exactly these fields:
+Return a JSON object with exactly these fields and real values:
 {{
     "plant_name": "{common_name}",
-    "nepali_name": "Nepali name if in source, else empty string",
+    "nepali_name": "Nepali local name if known, else empty string",
     "latin_name": "{display_name}",
-    "medicinal_uses": "uses from source, 2-3 sentences",
-    "safety": "SAFE or USE WITH CAUTION or TOXIC",
-    "safety_note": "brief safety info from source",
-    "location_in_nepal": "where this plant grows in Nepal — mention specific regions like Terai, Mid-hills, High Himalaya, or specific districts if known. If exact Nepal location unknown, state the general altitude or climate zone where it grows",
-    "traditional_use": "traditional Nepali use from source",
-    "source": "Wikipedia via knowledge base"
+    "medicinal_uses": "Describe the specific medicinal uses of this plant in 2-3 sentences based on the source",
+    "safety": "Must be exactly one of: SAFE, USE WITH CAUTION, or TOXIC",
+    "safety_note": "Explain the safety classification briefly",
+    "location_in_nepal": "Specific regions of Nepal where this plant is found such as Terai, Mid-hills, High Himalaya, or specific districts",
+    "traditional_use": "How this plant is traditionally used in Nepali or Ayurvedic medicine",
+    "source": "Wikipedia"
 }}
 
-JSON only. No extra text."""
+Important: Return only valid JSON. All field values must be real information, not placeholder text."""
 
     response = groq_client.chat.completions.create(
         model=GROQ_MODEL,
@@ -240,7 +238,7 @@ def generate_report_fallback(plant_name: str, common_name: str) -> dict:
     """Fallback when plant is not in ChromaDB. Uses Groq general knowledge."""
     display_name = plant_name.replace('_', ' ')
 
-    prompt = f"""You are a Nepal medicinal plant expert. Generate a report about {display_name} (common name: {common_name}).
+    prompt = f"""You are a Nepal medicinal plant expert. Generate accurate information about {display_name} (common name: {common_name}).
 
 Return JSON with exactly these fields:
 {{
@@ -255,7 +253,7 @@ Return JSON with exactly these fields:
     "source": "state the source of this information e.g. Ayurvedic texts, WHO monographs, traditional Nepali medicine knowledge, etc."
 }}
 
-JSON only. No extra text."""
+Important: Return only valid JSON. All field values must be real information, not placeholder text."""
 
     response = groq_client.chat.completions.create(
         model=GROQ_MODEL,
