@@ -1,7 +1,6 @@
 # 🌿 Nepal Medicinal Plant Intelligence System
 
-> AI-powered medicinal plant identification for Nepal — built by the AI Community, Herald College Kathmandu.
-
+> AI-powered medicinal plant identification for Nepal
 ---
 
 ## What It Does
