@@ -3,30 +3,182 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Medicinal Plants Finder</title>
+    <title>Nepal Medicinal Plant Detector</title>
     <link rel="stylesheet" href="/static/styles.css" />
     <script src="/static/app.js" defer></script>
   </head>
   <body>
-    <header class="app-header">
-      <div class="brand">
-        <p class="eyebrow">Plant image search</p>
-        <h1>Medicinal Plants Finder</h1>
+    <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true">
+      <symbol id="icon-leaf" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M17 3C10.5 3 6 7.2 4 12c2.5-1.5 5.5-2 8-1.5-.5-3 1-6 3.5-8.5C13.5 3.5 15 3 17 3Zm-1 18c-5 0-9-3.5-10.5-8.5 1.5 2 4 3.5 7 4-.5-2.5.5-5 2.5-6.5 2.5 2.5 3.5 6 1 11Z"
+        />
+      </symbol>
+      <symbol id="icon-home" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M12 3 3 10v11h7v-7h4v7h7V10L12 3Zm0 2.8 5 4.2v8H14v-7h-4v7H7v-8l5-4.2Z"
+        />
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M10 4a6 6 0 1 0 3.6 10.8l4.2 4.2 1.4-1.4-4.2-4.2A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"
+        />
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm-1 4h2v2h-2V8Zm0 4h2v6h-2v-6Z"
+        />
+      </symbol>
+      <symbol id="icon-upload" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M11 4h2v8.6l2.3-2.3 1.4 1.4L12 17l-4.7-4.7 1.4-1.4L11 12.6V4ZM5 18h14v2H5v-2Z"
+        />
+      </symbol>
+      <symbol id="icon-image" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v10.2l3.5-3.5 2.8 2.8L15.2 12 19 15.8V6H5Zm14 12v-1.8l-4.5-4.5-4.3 4.3-2.8-2.8L5 17.2V18h14ZM8 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
+        />
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M9.5 16.2 5.3 12l1.4-1.4 2.8 2.8 8.8-8.8 1.4 1.4-10.2 10.2Z"
+        />
+      </symbol>
+      <symbol id="icon-book" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M6 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Zm2 2v10a1 1 0 0 0 1 1h11V7a1 1 0 0 0-1-1H8Zm-4 0v12a3 3 0 0 0 3 3h1V6H4Z"
+        />
+      </symbol>
+      <symbol id="icon-map" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"
+        />
+      </symbol>
+      <symbol id="icon-users" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4ZM8 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm8 2c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4ZM2 17c0-2.2 3.6-3.5 6-3.8A5.5 5.5 0 0 0 8 11 5.5 5.5 0 0 0 2 17Z"
+        />
+      </symbol>
+      <symbol id="icon-eye" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M12 5C7 5 2.7 8.1 1 12c1.7 3.9 6 7 11 7s9.3-3.1 11-7c-1.7-3.9-6-7-11-7Zm0 2c3.9 0 7.4 2.2 9 5-1.6 2.8-5.1 5-9 5s-7.4-2.2-9-5c1.6-2.8 5.1-5 9-5Zm0 2.5A2.5 2.5 0 1 0 12 17a2.5 2.5 0 0 0 0-5Z"
+        />
+      </symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24">
+        <path
+          fill="currentColor"
+          d="M6.4 6.4 12 12l5.6-5.6 1.4 1.4L13.4 13.4l5.6 5.6-1.4 1.4L12 14.8l-5.6 5.6-1.4-1.4 5.6-5.6-5.6-5.6 1.4-1.4Z"
+        />
+      </symbol>
+    </svg>
+
+    <nav class="site-nav" aria-label="Main navigation">
+      <div class="nav-inner">
+        <a class="nav-brand" href="#home">
+          <svg class="icon icon-brand" aria-hidden="true"><use href="#icon-leaf" /></svg>
+          <span>Nepal Medicinal Plant Detector</span>
+        </a>
+        <ul class="nav-links">
+          <li>
+            <a class="nav-link" href="#home" data-nav="home">
+              <svg class="icon" aria-hidden="true"><use href="#icon-home" /></svg>
+              <span>Home</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-link" href="#plant-detector" data-nav="plant-detector">
+              <svg class="icon" aria-hidden="true"><use href="#icon-search" /></svg>
+              <span>Plant Detector</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-link" href="#about" data-nav="about">
+              <svg class="icon" aria-hidden="true"><use href="#icon-info" /></svg>
+              <span>About Us</span>
+            </a>
+          </li>
+        </ul>
       </div>
-      <div class="server-badge" id="serverBadge">Ready</div>
+    </nav>
+
+    <header class="app-header" id="home">
+      <div class="hero-grid">
+        <div class="brand">
+          <p class="eyebrow">Plant image search</p>
+          <h1>Nepal Medicinal Plant Detector</h1>
+          <p class="header-lead">
+            Upload a photo of a plant and discover what it might be, along with
+            useful medicinal information from our Nepal-focused knowledge base.
+          </p>
+          <a class="hero-cta" href="#plant-detector">
+            <svg class="icon" aria-hidden="true"><use href="#icon-search" /></svg>
+            Start identifying
+          </a>
+        </div>
+        <ol class="hero-steps" aria-label="How it works">
+          <li>
+            <span class="step-icon" aria-hidden="true">
+              <svg class="icon"><use href="#icon-upload" /></svg>
+            </span>
+            <div>
+              <strong>Upload a photo</strong>
+              <span>Drop or browse for a clear plant image</span>
+            </div>
+          </li>
+          <li>
+            <span class="step-icon" aria-hidden="true">
+              <svg class="icon"><use href="#icon-search" /></svg>
+            </span>
+            <div>
+              <strong>Identify the plant</strong>
+              <span>Our model matches it to known species</span>
+            </div>
+          </li>
+          <li>
+            <span class="step-icon" aria-hidden="true">
+              <svg class="icon"><use href="#icon-book" /></svg>
+            </span>
+            <div>
+              <strong>Learn its uses</strong>
+              <span>View medicinal and traditional context</span>
+            </div>
+          </li>
+        </ol>
+      </div>
     </header>
 
-    <main class="app-shell">
+    <main class="app-shell" id="plant-detector">
       <section class="upload-panel" aria-labelledby="uploadTitle">
         <div class="panel-heading">
-          <p class="eyebrow">Specimen</p>
-          <h2 id="uploadTitle">Image input</h2>
+          <div class="panel-heading-row">
+            <div>
+              <p class="eyebrow">Step 1</p>
+              <h2 id="uploadTitle">Image input</h2>
+            </div>
+            <span class="panel-tag">
+              <svg class="icon" aria-hidden="true"><use href="#icon-image" /></svg>
+              Specimen
+            </span>
+          </div>
         </div>
 
         <label class="dropzone" id="dropzone" for="imageInput">
           <img id="preview" class="preview" alt="Selected plant preview" hidden />
           <div class="dropzone-empty" id="dropzoneText">
-            <span class="upload-icon" aria-hidden="true"></span>
+            <span class="dropzone-icon" aria-hidden="true">
+              <svg class="icon"><use href="#icon-upload" /></svg>
+            </span>
             <strong>Browse or drop an image</strong>
             <span>JPG, PNG, WEBP, or TIFF</span>
           </div>
@@ -50,9 +202,13 @@
 
         <div class="actions">
           <button class="primary-btn" id="analyzeBtn" type="button" disabled>
-            Check plant
+            <svg class="icon btn-icon" aria-hidden="true"><use href="#icon-search" /></svg>
+            <span class="btn-label">Check plant</span>
           </button>
-          <button class="ghost-btn" id="clearBtn" type="button" disabled>Clear</button>
+          <button class="ghost-btn" id="clearBtn" type="button" disabled>
+            <svg class="icon btn-icon" aria-hidden="true"><use href="#icon-close" /></svg>
+            Clear
+          </button>
         </div>
 
         <p class="status" id="status" aria-live="polite">
@@ -63,7 +219,7 @@
       <section class="result-panel result-panel-empty" id="resultCard" aria-live="polite">
         <div class="record-header">
           <div>
-            <p class="eyebrow">Identification record</p>
+            <p class="eyebrow">Step 2</p>
             <h2 id="resultTitle">No specimen loaded</h2>
             <p id="resultSubtitle">Run analysis to create a plant record.</p>
           </div>
@@ -82,21 +238,33 @@
         <div class="record-layout">
           <div class="record-details">
             <div class="empty-record" id="emptyRecord">
-              <div>
-                <span>Best match</span>
-                <strong>-</strong>
-              </div>
-              <div>
-                <span>Scientific name</span>
-                <strong>-</strong>
-              </div>
-              <div>
-                <span>Common name</span>
-                <strong>-</strong>
-              </div>
-              <div>
-                <span>Confidence</span>
-                <strong>-</strong>
+              <div class="empty-state-card">
+                <span class="empty-state-icon" aria-hidden="true">
+                  <svg class="icon"><use href="#icon-leaf" /></svg>
+                </span>
+                <strong>Waiting for a specimen</strong>
+                <p>
+                  Upload a plant photo on the left, then run analysis to see
+                  identification results here.
+                </p>
+                <div class="empty-preview-grid" aria-hidden="true">
+                  <div class="empty-preview-item">
+                    <span class="empty-preview-label">Best match</span>
+                    <span class="empty-preview-value">—</span>
+                  </div>
+                  <div class="empty-preview-item">
+                    <span class="empty-preview-label">Scientific name</span>
+                    <span class="empty-preview-value">—</span>
+                  </div>
+                  <div class="empty-preview-item">
+                    <span class="empty-preview-label">Common name</span>
+                    <span class="empty-preview-value">—</span>
+                  </div>
+                  <div class="empty-preview-item">
+                    <span class="empty-preview-label">Confidence</span>
+                    <span class="empty-preview-value">—</span>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="meta-list" id="metaList"></div>
@@ -109,5 +277,78 @@
         </div>
       </section>
     </main>
+
+    <section class="about-section" id="about" aria-labelledby="aboutTitle">
+      <div class="about-inner">
+        <div class="about-content">
+          <p class="eyebrow">About Us</p>
+          <h2 id="aboutTitle">A student project for plant awareness</h2>
+          <p>
+            Nepal Medicinal Plant Detector is a student-made project created to help
+            people notice and learn about the plants around them. Many useful
+            and medicinal species grow in gardens, parks, and neighborhoods
+            every day, yet they often go unrecognized.
+          </p>
+          <p>
+            We built this tool to make plant identification more accessible.
+            By uploading a photo, anyone can explore what a plant might be and
+            discover basic medicinal context, encouraging curiosity about local
+            flora and a deeper connection with the natural world.
+          </p>
+          <ul class="about-highlights">
+            <li>
+              <svg class="icon" aria-hidden="true"><use href="#icon-users" /></svg>
+              Student-led learning project
+            </li>
+            <li>
+              <svg class="icon" aria-hidden="true"><use href="#icon-map" /></svg>
+              Designed to raise awareness of nearby plants
+            </li>
+            <li>
+              <svg class="icon" aria-hidden="true"><use href="#icon-leaf" /></svg>
+              Focused on medicinal and useful species
+            </li>
+          </ul>
+        </div>
+        <div class="about-aside">
+          <div
+            class="about-card about-card-featured"
+            style="--about-card-image: url('https://clicknepal.com/wp-content/uploads/2023/04/Laliguras-pathibhara-.jpg')"
+          >
+            <div class="about-card-media" aria-hidden="true"></div>
+            <div class="about-card-overlay">
+              <span class="about-icon" aria-hidden="true">
+                <svg class="icon"><use href="#icon-eye" /></svg>
+              </span>
+              <strong>Look closer</strong>
+              <p>
+                The plants you walk past every day may have stories, uses, and
+                traditions worth knowing.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <p class="footer-tagline">
+          <svg class="icon" aria-hidden="true"><use href="#icon-leaf" /></svg>
+          Nepal Medicinal Plant Detector — a student project for local plant awareness.
+        </p>
+        <p class="footer-credits-label">Created by</p>
+        <div class="footer-authors">
+          <div class="footer-author">
+            <strong>Shikha Pandey</strong>
+            <a href="mailto:pandeyshikha567@gmail.com">pandeyshikha567@gmail.com</a>
+          </div>
+          <div class="footer-author">
+            <strong>Triza Shasankar</strong>
+            <a href="mailto:trizashanks@gmail.com">trizashanks@gmail.com</a>
+          </div>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

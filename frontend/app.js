@@ -5,7 +5,6 @@ const dropzoneText = document.getElementById("dropzoneText");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const clearBtn = document.getElementById("clearBtn");
 const statusLine = document.getElementById("status");
-const serverBadge = document.getElementById("serverBadge");
 const fileRecord = document.getElementById("fileRecord");
 const fileName = document.getElementById("fileName");
 const fileSize = document.getElementById("fileSize");
@@ -22,6 +21,8 @@ const confidenceMeter = document.getElementById("confidenceMeter");
 const emptyRecord = document.getElementById("emptyRecord");
 const metaList = document.getElementById("metaList");
 const otherMatches = document.getElementById("otherMatches");
+const navLinks = document.querySelectorAll(".nav-link[data-nav]");
+const analyzeBtnLabel = analyzeBtn.querySelector(".btn-label");
 
 // ── Updated endpoint to connect to your FastAPI ──
 const analyzeEndpoint =
@@ -44,20 +45,6 @@ function formatBytes(bytes) {
 function setStatus(message, tone = "neutral") {
   statusLine.textContent = message;
   statusLine.dataset.tone = tone;
-
-  if (tone === "loading") {
-    serverBadge.textContent = "Checking";
-    serverBadge.dataset.tone = "loading";
-  } else if (tone === "error") {
-    serverBadge.textContent = "Need image";
-    serverBadge.dataset.tone = "error";
-  } else if (tone === "success") {
-    serverBadge.textContent = "Match found";
-    serverBadge.dataset.tone = "success";
-  } else {
-    serverBadge.textContent = "Waiting";
-    serverBadge.dataset.tone = "neutral";
-  }
 }
 
 function setBusy(nextValue) {
@@ -65,6 +52,7 @@ function setBusy(nextValue) {
   analyzeBtn.disabled = isAnalyzing || !selectedFile;
   clearBtn.disabled = isAnalyzing || !selectedFile;
   analyzeBtn.classList.toggle("is-loading", isAnalyzing);
+  analyzeBtnLabel.textContent = isAnalyzing ? "Analyzing..." : "Check plant";
 }
 
 function resetResultPanel() {
@@ -397,3 +385,39 @@ referenceImage.addEventListener("error", () => {
   referenceWrap.hidden = true;
   resultCard.classList.remove("has-reference");
 });
+
+function initNavSpy() {
+  const sections = ["home", "plant-detector", "about"]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+
+  if (sections.length === 0 || navLinks.length === 0) return;
+
+  const setActiveNav = (id) => {
+    navLinks.forEach((link) => {
+      link.classList.toggle("is-active", link.dataset.nav === id);
+    });
+  };
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+      if (visible[0]) {
+        setActiveNav(visible[0].target.id);
+      }
+    },
+    {
+      root: null,
+      rootMargin: "-35% 0px -45% 0px",
+      threshold: [0.15, 0.35, 0.55],
+    }
+  );
+
+  sections.forEach((section) => observer.observe(section));
+  setActiveNav("home");
+}
+
+initNavSpy();
