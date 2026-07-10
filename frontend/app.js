@@ -190,6 +190,8 @@ function mapApiResponseToUI(data) {
       confidence: confidencePercent,
       confidence_label: confidencePercent >= 75 ? "high" : confidencePercent >= 50 ? "moderate" : "low",
       metadata: {
+        genus: data.ml_prediction ? data.ml_prediction.split("_")[0] : "",
+        species: data.ml_prediction ? data.ml_prediction.split("_").slice(1).join(" ") : "",
         scientific_name: report.latin_name || "",
         common_name: report.plant_name || "",
         nepali_name: report.nepali_name || "",
@@ -211,6 +213,8 @@ function renderMetadata(metadata) {
   const items = [];
 
   const fields = [
+    { label: "Genus", value: metadata.genus },
+    { label: "Species", value: metadata.species },
     { label: "Scientific name", value: metadata.scientific_name },
     { label: "Common name", value: metadata.common_name },
     { label: "Nepali name", value: metadata.nepali_name },
