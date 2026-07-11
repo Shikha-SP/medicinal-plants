@@ -5,6 +5,7 @@ const dropzoneText = document.getElementById("dropzoneText");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const clearBtn = document.getElementById("clearBtn");
 const statusLine = document.getElementById("status");
+const serverBadge = document.getElementById("serverBadge"); // may be null in updated UI
 const fileRecord = document.getElementById("fileRecord");
 const fileName = document.getElementById("fileName");
 const fileSize = document.getElementById("fileSize");
@@ -21,8 +22,6 @@ const confidenceMeter = document.getElementById("confidenceMeter");
 const emptyRecord = document.getElementById("emptyRecord");
 const metaList = document.getElementById("metaList");
 const otherMatches = document.getElementById("otherMatches");
-const navLinks = document.querySelectorAll(".nav-link[data-nav]");
-const analyzeBtnLabel = analyzeBtn.querySelector(".btn-label");
 
 // ── Updated endpoint to connect to your FastAPI ──
 const analyzeEndpoint =
@@ -45,6 +44,22 @@ function formatBytes(bytes) {
 function setStatus(message, tone = "neutral") {
   statusLine.textContent = message;
   statusLine.dataset.tone = tone;
+
+  if (serverBadge) {
+    if (tone === "loading") {
+      serverBadge.textContent = "Checking";
+      serverBadge.dataset.tone = "loading";
+    } else if (tone === "error") {
+      serverBadge.textContent = "Need image";
+      serverBadge.dataset.tone = "error";
+    } else if (tone === "success") {
+      serverBadge.textContent = "Match found";
+      serverBadge.dataset.tone = "success";
+    } else {
+      serverBadge.textContent = "Waiting";
+      serverBadge.dataset.tone = "neutral";
+    }
+  }
 }
 
 function setBusy(nextValue) {
@@ -52,7 +67,6 @@ function setBusy(nextValue) {
   analyzeBtn.disabled = isAnalyzing || !selectedFile;
   clearBtn.disabled = isAnalyzing || !selectedFile;
   analyzeBtn.classList.toggle("is-loading", isAnalyzing);
-  analyzeBtnLabel.textContent = isAnalyzing ? "Analyzing..." : "Check plant";
 }
 
 function resetResultPanel() {
@@ -171,26 +185,37 @@ function createLinkItem(label, url, text) {
 function mapApiResponseToUI(data) {
   const report = data.report || {};
   const confidencePercent = Math.round((data.confidence || 0) * 100);
+  const tax = data.taxonomy || {};
+
+  const taxonomyParts = [
+    tax.kingdom ? `Kingdom: ${tax.kingdom}` : "",
+    tax.phylum ? `Phylum: ${tax.phylum}` : "",
+    tax.class ? `Class: ${tax.class}` : "",
+    tax.order ? `Order: ${tax.order}` : "",
+    tax.family ? `Family: ${tax.family}` : "",
+    tax.genus ? `Genus: ${tax.genus}` : "",
+    tax.species ? `Species: ${tax.species}` : "",
+  ].filter(Boolean).join(" > ");
 
   return {
     best_match: {
-      name: report.plant_name || data.ml_prediction || "Unknown",
+      name: data.common_name || report.plant_name || data.ml_prediction || "Unknown",
       confidence: confidencePercent,
       confidence_label: confidencePercent >= 75 ? "high" : confidencePercent >= 50 ? "moderate" : "low",
       metadata: {
-        genus: data.ml_prediction ? data.ml_prediction.split("_")[0] : "",
-        species: data.ml_prediction ? data.ml_prediction.split("_").slice(1).join(" ") : "",
-        scientific_name: report.latin_name || "",
-        common_name: report.plant_name || "",
-        nepali_name: report.nepali_name || "",
-        medicinal_uses: report.medicinal_uses || "",
+        genus: tax.genus || (data.ml_prediction ? data.ml_prediction.split("_")[0] : ""),
+        species: tax.species ? tax.species.split(" ").slice(1).join(" ") : (data.ml_prediction ? data.ml_prediction.split("_").slice(1).join(" ") : ""),
+        scientific_name: report.latin_name || tax.species || "",
+        common_name: report.nepali_name ? `${data.common_name} (${report.nepali_name})` : data.common_name || "",
+        description: report.medicinal_uses || "",
+        taxonomy: taxonomyParts,
         traditional_use: report.traditional_use || "",
         safety: report.safety || "",
         safety_note: report.safety_note || "",
         location_in_nepal: report.location_in_nepal || "",
         source: report.source || (data.report_source === "knowledge_base" ? "Wikipedia via knowledge base" : "General knowledge"),
-        observation_url: null,
-        image_url: null,
+        observation_url: data.observation_url || null,
+        image_url: data.image_url || null,
       },
     },
     other_matches: [],
@@ -205,8 +230,8 @@ function renderMetadata(metadata) {
     { label: "Species", value: metadata.species },
     { label: "Scientific name", value: metadata.scientific_name },
     { label: "Common name", value: metadata.common_name },
-    { label: "Nepali name", value: metadata.nepali_name },
-    { label: "Medicinal uses", value: metadata.medicinal_uses },
+    { label: "Taxonomy", value: metadata.taxonomy },
+    { label: "Medicinal uses", value: metadata.description },
     { label: "Traditional use in Nepal", value: metadata.traditional_use },
     { label: "Safety", value: metadata.safety },
     { label: "Safety note", value: metadata.safety_note },
@@ -220,15 +245,7 @@ function renderMetadata(metadata) {
     }
   });
 
-  if (metadata.observation_url) {
-    const linkItem = createLinkItem("Observation", metadata.observation_url, "Open observation");
-    if (linkItem) items.push(linkItem);
-  }
 
-  if (metadata.image_url) {
-    const linkItem = createLinkItem("Reference image", metadata.image_url, "Open image");
-    if (linkItem) items.push(linkItem);
-  }
 
   metaList.replaceChildren(
     ...(items.length > 0
@@ -385,39 +402,3 @@ referenceImage.addEventListener("error", () => {
   referenceWrap.hidden = true;
   resultCard.classList.remove("has-reference");
 });
-
-function initNavSpy() {
-  const sections = ["home", "plant-detector", "about"]
-    .map((id) => document.getElementById(id))
-    .filter(Boolean);
-
-  if (sections.length === 0 || navLinks.length === 0) return;
-
-  const setActiveNav = (id) => {
-    navLinks.forEach((link) => {
-      link.classList.toggle("is-active", link.dataset.nav === id);
-    });
-  };
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-
-      if (visible[0]) {
-        setActiveNav(visible[0].target.id);
-      }
-    },
-    {
-      root: null,
-      rootMargin: "-35% 0px -45% 0px",
-      threshold: [0.15, 0.35, 0.55],
-    }
-  );
-
-  sections.forEach((section) => observer.observe(section));
-  setActiveNav("home");
-}
-
-initNavSpy();
