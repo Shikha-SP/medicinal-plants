@@ -163,7 +163,6 @@
         <div class="panel-heading">
           <div class="panel-heading-row">
             <div>
-              <p class="eyebrow">Step 1</p>
               <h2 id="uploadTitle">Image input</h2>
             </div>
             <span class="panel-tag">
@@ -219,7 +218,6 @@
       <section class="result-panel result-panel-empty" id="resultCard" aria-live="polite">
         <div class="record-header">
           <div>
-            <p class="eyebrow">Step 2</p>
             <h2 id="resultTitle">No specimen loaded</h2>
             <p id="resultSubtitle">Run analysis to create a plant record.</p>
           </div>
@@ -268,6 +266,50 @@
               </div>
             </div>
             <div class="meta-list" id="metaList"></div>
+            <div id="populatedRecord" hidden>
+              <div class="classification-row">
+                <div class="class-item"><span class="class-label">Genus</span><strong id="valGenus"></strong></div>
+                <div class="class-item class-divider"><span class="class-label">Species</span><strong id="valSpecies"></strong></div>
+                <div class="class-item class-divider"><span class="class-label">Scientific name</span><strong id="valScientific"><i></i></strong></div>
+                <div class="class-item class-divider"><span class="class-label">Common name</span><strong id="valCommon"></strong></div>
+              </div>
+              
+              <div class="cards-row">
+                <div class="info-card">
+                  <h3>Medicinal Uses</h3>
+                  <p id="valMedicinal"></p>
+                </div>
+                <div class="info-card">
+                  <h3>Traditional Use in Nepal</h3>
+                  <p id="valTraditional"></p>
+                </div>
+                <div class="info-card safety-card">
+                  <h3>Safety</h3>
+                  <span class="safety-tag" id="valSafetyTag"></span>
+                  <p id="valSafetyNote"></p>
+                </div>
+              </div>
+
+              <div class="location-card">
+                <div class="location-content">
+                  <h3>Found in Nepal</h3>
+                  <p id="valLocation"></p>
+                </div>
+                <div class="location-graphic">
+                  <svg class="mountain-svg" viewBox="0 0 400 120" preserveAspectRatio="none">
+                    <path d="M0,120 L0,100 L40,80 L80,100 L120,60 L180,110 L220,50 L280,90 L330,30 L380,80 L400,70 L400,120 Z" fill="#e8f0ec" />
+                    <path d="M100,120 L180,60 L240,110 L300,40 L380,100 L400,90 L400,120 Z" fill="#d2ddd7" />
+                    <path d="M280,30 C274,30 270,34 270,40 C270,47 280,55 280,55 C280,55 290,47 290,40 C290,34 286,30 280,30 Z" fill="#1f4e3b" />
+                    <circle cx="280" cy="38" r="3" fill="#fff" />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="disclaimer-card">
+                <svg class="icon" aria-hidden="true"><use href="#icon-info" /></svg>
+                <p><strong>Disclaimer:</strong> This information is for educational purposes only and should not replace professional medical advice. Always consult a qualified healthcare provider before using any medicinal plant.</p>
+              </div>
+            </div>
             <div class="match-list" id="otherMatches"></div>
           </div>
 

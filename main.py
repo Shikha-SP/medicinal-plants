@@ -3,22 +3,23 @@ import json
 import re
 from io import BytesIO
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from PIL import Image
-from predict import predict_plant
-
 try:
+    from fastapi import FastAPI, File, UploadFile, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse, FileResponse
+    from fastapi.staticfiles import StaticFiles
+    from PIL import Image
     import chromadb
     from sentence_transformers import SentenceTransformer
     from groq import Groq
     from dotenv import load_dotenv
+    import uvicorn
 except ModuleNotFoundError as e:
     print(f"Missing package: {e.name}")
-    print("Install with: pip install fastapi uvicorn groq chromadb sentence-transformers python-multipart python-dotenv")
+    print("Install with: pip install fastapi uvicorn groq chromadb sentence-transformers python-multipart python-dotenv pillow")
     exit(1)
+
+from predict import predict_plant
 
 # ── Load environment variables ───────────────────────────
 load_dotenv()
@@ -349,6 +350,10 @@ async def identify_plant(file: UploadFile = File(...)):
         "success": True,
         "confidence": round(confidence, 3),
         "ml_prediction": plant_name,
+        "common_name": prediction.get("common_name"),
+        "observation_url": prediction.get("observation_url"),
+        "image_url": prediction.get("image_url"),
+        "taxonomy": prediction.get("taxonomy"),
         "report_source": report_source,
         "report": report
     })

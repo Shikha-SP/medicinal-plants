@@ -80,6 +80,8 @@ function resetResultPanel() {
   confidenceMeter.style.width = "0%";
   metaList.replaceChildren();
   otherMatches.replaceChildren();
+  const populatedRecord = document.getElementById("populatedRecord");
+  if (populatedRecord) populatedRecord.hidden = true;
 }
 
 function showLoadingResult() {
@@ -92,6 +94,8 @@ function showLoadingResult() {
   emptyRecord.hidden = true;
   metaList.replaceChildren();
   otherMatches.replaceChildren();
+  const populatedRecord = document.getElementById("populatedRecord");
+  if (populatedRecord) populatedRecord.hidden = true;
 }
 
 function clearSelection() {
@@ -223,35 +227,34 @@ function mapApiResponseToUI(data) {
 }
 
 function renderMetadata(metadata) {
-  const items = [];
-
-  const fields = [
-    { label: "Genus", value: metadata.genus },
-    { label: "Species", value: metadata.species },
-    { label: "Scientific name", value: metadata.scientific_name },
-    { label: "Common name", value: metadata.common_name },
-    { label: "Taxonomy", value: metadata.taxonomy },
-    { label: "Medicinal uses", value: metadata.description },
-    { label: "Traditional use in Nepal", value: metadata.traditional_use },
-    { label: "Safety", value: metadata.safety },
-    { label: "Safety note", value: metadata.safety_note },
-    { label: "Found in Nepal", value: metadata.location_in_nepal },
-    { label: "Source", value: metadata.source },
-  ];
-
-  fields.forEach(({ label, value }) => {
-    if (value && value.trim() !== "") {
-      items.push(createMetaItem(label, value));
-    }
-  });
-
-
-
-  metaList.replaceChildren(
-    ...(items.length > 0
-      ? items
-      : [createMetaItem("Info", "No additional metadata was returned for this match.")])
-  );
+  document.getElementById("valGenus").textContent = metadata.genus || "—";
+  document.getElementById("valSpecies").textContent = metadata.species || "—";
+  document.getElementById("valScientific").textContent = metadata.scientific_name || "—";
+  document.getElementById("valCommon").textContent = metadata.common_name || "—";
+  
+  document.getElementById("valMedicinal").textContent = metadata.description || "No medicinal uses found.";
+  document.getElementById("valTraditional").textContent = metadata.traditional_use || "No traditional uses found.";
+  
+  const safetyTag = document.getElementById("valSafetyTag");
+  safetyTag.textContent = metadata.safety || "UNKNOWN";
+  
+  // Highlight toxic/caution
+  if (metadata.safety?.toUpperCase() === "TOXIC") {
+    safetyTag.style.color = "var(--danger)";
+    safetyTag.style.background = "#fdf3f2";
+  } else if (metadata.safety?.toUpperCase() === "SAFE") {
+    safetyTag.style.color = "var(--leaf-dark)";
+    safetyTag.style.background = "var(--leaf-soft)";
+  } else {
+    safetyTag.style.color = "#d97706";
+    safetyTag.style.background = "#fff3cd";
+  }
+  
+  document.getElementById("valSafetyNote").textContent = metadata.safety_note || "No safety notes found.";
+  document.getElementById("valLocation").textContent = metadata.location_in_nepal || "Location not specified.";
+  
+  document.getElementById("populatedRecord").hidden = false;
+  metaList.replaceChildren(); // keep empty
 }
 
 function renderOtherMatches(matches) {
@@ -349,6 +352,8 @@ async function analyzeSelectedFile() {
       resultSubtitle.textContent = payload.message || "Please try a clearer photo.";
       confidenceBlock.hidden = true;
       emptyRecord.hidden = true;
+      const populatedRecord = document.getElementById("populatedRecord");
+      if (populatedRecord) populatedRecord.hidden = true;
       metaList.replaceChildren(createMetaItem("Tip", "Try a clearer, well-lit photo of the plant."));
       otherMatches.replaceChildren();
       setStatus(payload.message || "Could not identify plant.", "error");
@@ -365,6 +370,8 @@ async function analyzeSelectedFile() {
     resultCard.classList.remove("has-reference");
     confidenceBlock.hidden = true;
     emptyRecord.hidden = true;
+    const populatedRecord = document.getElementById("populatedRecord");
+    if (populatedRecord) populatedRecord.hidden = true;
     metaList.replaceChildren(createMetaItem("Error", error.message));
     otherMatches.replaceChildren();
     setStatus(error.message, "error");

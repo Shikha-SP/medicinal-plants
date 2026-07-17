@@ -26,7 +26,7 @@ try:
 except ModuleNotFoundError as e:
     print(f"Missing package: {e.name}")
     print("Install with: pip install torch torchvision faiss-cpu")
-    raise
+    sys.exit(1)
 
 # ── Load FAISS index and metadata once at startup ────────
 print("[predict] Loading FAISS index...")
@@ -75,6 +75,13 @@ def predict_plant(image: Image.Image, k: int = 3) -> dict:
     {
         "plant_name": "Ocimum_tenuiflorum",
         "confidence": 0.759,
+        "common_name": "Tulsi",
+        "observation_url": "https://...",
+        "image_url": "https://...",
+        "taxonomy": {
+            "kingdom": "Plantae",
+            ...
+        },
         "top_matches": [
             {"plant_name": "Ocimum_tenuiflorum", "confidence": 0.759},
             {"plant_name": "Ocimum_basilicum", "confidence": 0.634},
@@ -99,10 +106,13 @@ def predict_plant(image: Image.Image, k: int = 3) -> dict:
 
     # Build results
     top_matches = []
+    best_meta = None
     for dist, idx in zip(D[0], I[0]):
         if idx < 0 or idx >= len(meta_list):
             continue
         meta = meta_list[idx]
+        if best_meta is None:
+            best_meta = meta
         score = float(1.0 / (1.0 + float(dist)))
         plant_class = meta.get('class', 'Unknown')
         top_matches.append({
@@ -114,12 +124,31 @@ def predict_plant(image: Image.Image, k: int = 3) -> dict:
         return {
             "plant_name": "Unknown",
             "confidence": 0.0,
+            "common_name": "Unknown",
+            "observation_url": None,
+            "image_url": None,
+            "taxonomy": {},
             "top_matches": []
         }
 
     best = top_matches[0]
+    csv_meta = best_meta.get("csv_metadata", {}) if best_meta else {}
+    taxonomy = {
+        "kingdom": csv_meta.get("taxon_kingdom_name"),
+        "phylum": csv_meta.get("taxon_phylum_name"),
+        "class": csv_meta.get("taxon_class_name"),
+        "order": csv_meta.get("taxon_order_name"),
+        "family": csv_meta.get("taxon_family_name"),
+        "genus": csv_meta.get("taxon_genus_name"),
+        "species": csv_meta.get("taxon_species_name"),
+    }
+
     return {
         "plant_name": best["plant_name"],
         "confidence": best["confidence"],
+        "common_name": csv_meta.get("common_name", best["plant_name"].replace('_', ' ')),
+        "observation_url": csv_meta.get("url"),
+        "image_url": csv_meta.get("image_url"),
+        "taxonomy": taxonomy,
         "top_matches": top_matches
     }
