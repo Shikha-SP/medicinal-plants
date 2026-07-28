@@ -11,7 +11,7 @@ env:
 
 jobs:
   deploy:
-    name: Build & Deploy
+    name: Deploy
     runs-on: ubuntu-latest
 
     steps:
@@ -19,11 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Set up Docker Buildx ─────────────────────────────────
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # ── 3. Write SSH key ─────────────────────────────────────────
+      # ── 2. Write SSH key ─────────────────────────────────────────
       - name: Write SSH key
         run: |
           mkdir -p ~/.ssh
@@ -31,38 +27,24 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      # ── 4. Build Docker image ────────────────────────────────────
-      # .dockerignore excludes: .git, __pycache__, *.pyc, .env,
-      # .venv, data/chroma_db, data/plant_database.index, queries/
-      # dataset/ — only source code and pip packages enter the image.
-      - name: Build Docker image
+      # ── 3. Sync code to server ───────────────────────────────────
+      # Uploads the entire repo to the server.
+      # .gitignore excludes: .env, data/, __pycache__, etc.
+      # Those never get synced from the repo.
+      - name: Sync code to server
         run: |
-          docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.env' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }}" \
+            ./ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_DIR }}/
 
-      # ── 5. Save image as tar and copy to server ──────────────────
-      - name: Transfer Docker image to server
-        run: |
-          docker save ${{ env.IMAGE_NAME }}:${{ github.sha }} | gzip \
-            | ssh -i ~/.ssh/deploy_key \
-                  -p ${{ secrets.SSH_PORT }} \
-                  -o StrictHostKeyChecking=no \
-                  ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-                  "cat > /tmp/${{ env.IMAGE_NAME }}.tar.gz"
-
-      # ── 6. Prepare remote directories ───────────────────────────
-      # Creates /home/deployuser/app/data/{queries,chroma_db}.
-      # queries/ and chroma_db/ are gitignored runtime artifacts
-      # that only ever live on the server via the volume mount.
-      - name: Prepare remote directories
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-              -p ${{ secrets.SSH_PORT }} \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              "mkdir -p ${{ env.APP_DIR }}/data/queries \
-                         ${{ env.APP_DIR }}/data/chroma_db"
-
-      # ── 7. Deploy on server ──────────────────────────────────────
-      - name: Deploy on server
+      # ── 4. Deploy on server ──────────────────────────────────────
+      - name: Build and deploy on server
         run: |
           ssh -i ~/.ssh/deploy_key \
               -p ${{ secrets.SSH_PORT }} \
@@ -74,18 +56,21 @@ jobs:
             APP_DIR="${{ env.APP_DIR }}"
             IMAGE_NAME="${{ env.IMAGE_NAME }}"
 
-            # ── Load the new image ────────────────────────────
-            echo "Loading Docker image..."
-            docker load < /tmp/${IMAGE_NAME}.tar.gz
+            cd ${APP_DIR}
 
             # ── Write .env from GitHub secrets ───────────────
             # .env is gitignored — injected here from secrets
-            # so it never touches the repo or the image.
+            # so it never touches the repo.
             echo "Writing .env file..."
-            cat > ${APP_DIR}/.env << EOF
+            cat > .env << EOF
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             EOF
-            chmod 600 ${APP_DIR}/.env
+            chmod 600 .env
+
+            # ── Build Docker image on server ─────────────────
+            echo "Building Docker image..."
+            docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+            docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
 
             # ── Stop and remove old container ─────────────────
             echo "Stopping old container..."
@@ -106,7 +91,7 @@ jobs:
               -p 8000:8000 \
               --env-file ${APP_DIR}/.env \
               -v ${APP_DIR}/data:/app/data \
-              ${IMAGE_NAME}:${IMAGE_TAG}
+              ${IMAGE_NAME}:latest
 
             # ── Health check ──────────────────────────────────
             echo "Waiting for app to start..."
@@ -117,9 +102,6 @@ jobs:
             # ── Prune old images ──────────────────────────────
             echo "Pruning old images..."
             docker image prune -f
-
-            # ── Clean up tar ──────────────────────────────────
-            rm -f /tmp/${IMAGE_NAME}.tar.gz
 
             echo "Deployment complete."
           ENDSSH
