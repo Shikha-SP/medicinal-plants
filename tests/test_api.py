@@ -1,24 +1,12 @@
 """
 Basic API tests for the medicinal plant detector.
-Mocks heavy dependencies to keep tests fast.
+Mocks are set up globally in conftest.py.
 """
 
 import pytest
-from fastapi.testclient import TestClient
 import sys
 import os
-from unittest.mock import MagicMock, patch
-
-# Set up test environment before importing main
-os.environ['GROQ_API_KEY'] = 'test_mock_key'
-
-# Mock heavy dependencies
-sys.modules['chromadb'] = MagicMock()
-sys.modules['sentence_transformers'] = MagicMock()
-sys.modules['groq'] = MagicMock()
-sys.modules['torch'] = MagicMock()
-sys.modules['torchvision'] = MagicMock()
-sys.modules['faiss'] = MagicMock()
+from unittest.mock import MagicMock
 
 
 def test_health_endpoint():

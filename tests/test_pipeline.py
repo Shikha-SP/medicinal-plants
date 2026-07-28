@@ -1,16 +1,12 @@
 """
 Unit tests for the plant pipeline utilities.
+Mocks are set up globally in conftest.py.
 """
 
 import pytest
 import sys
 import os
 from unittest.mock import MagicMock
-
-# Mock heavy deps
-sys.modules['torch'] = MagicMock()
-sys.modules['torchvision'] = MagicMock()
-sys.modules['faiss'] = MagicMock()
 
 
 def test_format_bytes():
@@ -32,13 +28,6 @@ def test_format_bytes():
 
 def test_common_names_lookup():
     """Test that common names mapping is correct"""
-    # Import COMMON_NAMES without loading the full app
-    os.environ['GROQ_API_KEY'] = 'test_mock_key'
-
-    sys.modules['chromadb'] = MagicMock()
-    sys.modules['sentence_transformers'] = MagicMock()
-    sys.modules['groq'] = MagicMock()
-
     from main import COMMON_NAMES
 
     assert COMMON_NAMES["Ocimum_tenuiflorum"] == "Tulsi"
@@ -49,12 +38,6 @@ def test_common_names_lookup():
 
 def test_confidence_threshold():
     """Test confidence threshold is within valid range"""
-    os.environ['GROQ_API_KEY'] = 'test_mock_key'
-
-    sys.modules['chromadb'] = MagicMock()
-    sys.modules['sentence_transformers'] = MagicMock()
-    sys.modules['groq'] = MagicMock()
-
     from main import CONFIDENCE_THRESHOLD
 
     assert 0.0 < CONFIDENCE_THRESHOLD < 1.0
