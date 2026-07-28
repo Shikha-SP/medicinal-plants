@@ -70,12 +70,12 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
               -p ${{ secrets.SSH_PORT }} \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              bash -s << ENDSSH
+              'bash -s' << 'ENDSSH'
             set -e
 
-            IMAGE_TAG="${{ github.sha }}"
-            APP_DIR="${{ env.APP_DIR }}"
-            IMAGE_NAME="${{ env.IMAGE_NAME }}"
+            IMAGE_TAG=${{ github.sha }}
+            APP_DIR=${{ env.APP_DIR }}
+            IMAGE_NAME=${{ env.IMAGE_NAME }}
 
             # ── Ensure Docker is installed and running ───────────
             # deployuser must be in the docker group or have passwordless
@@ -91,30 +91,30 @@ jobs:
             # Verify deployuser can run docker without sudo
             if ! docker info >/dev/null 2>&1; then
               echo "ERROR: deployuser cannot run docker."
-              echo "Add to docker group: sudo usermod -aG docker \$(whoami) && newgrp docker"
+              echo "Add to docker group: sudo usermod -aG docker $(whoami) && newgrp docker"
               exit 1
             fi
 
-            cd \${APP_DIR}
+            cd ${APP_DIR}
 
             # ── Ensure data directories exist ─────────────────
-            mkdir -p \${APP_DIR}/data/queries \${APP_DIR}/data/chroma_db
+            mkdir -p ${APP_DIR}/data/queries ${APP_DIR}/data/chroma_db
 
             # ── Write .env from GitHub secrets ───────────────
-            cat > \${APP_DIR}/.env << EOF
+            cat > ${APP_DIR}/.env << 'EOF'
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             EOF
-            chmod 600 \${APP_DIR}/.env
+            chmod 600 ${APP_DIR}/.env
 
             # ── Build Docker image on server ─────────────────
             echo "Building Docker image..."
-            docker build -t \${IMAGE_NAME}:\${IMAGE_TAG} .
-            docker tag \${IMAGE_NAME}:\${IMAGE_TAG} \${IMAGE_NAME}:latest
+            docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+            docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
 
             # ── Stop and remove old container ─────────────────
             echo "Stopping old container..."
-            docker stop \${IMAGE_NAME} 2>/dev/null || true
-            docker rm   \${IMAGE_NAME} 2>/dev/null || true
+            docker stop ${IMAGE_NAME} 2>/dev/null || true
+            docker rm   ${IMAGE_NAME} 2>/dev/null || true
 
             # ── Start new container ───────────────────────────
             # Resource limits prevent runaway memory/CPU/disk usage:
@@ -124,29 +124,29 @@ jobs:
             #   --pids-limit=512      max 512 processes
             echo "Starting new container with resource limits..."
             docker run -d \
-              --name \${IMAGE_NAME} \
+              --name ${IMAGE_NAME} \
               --restart unless-stopped \
               -p 8000:8000 \
               --memory=25g \
               --memory-swap=25g \
               --cpus=2.0 \
               --pids-limit=512 \
-              --env-file \${APP_DIR}/.env \
-              -v \${APP_DIR}/data:/app/data \
-              \${IMAGE_NAME}:latest
+              --env-file ${APP_DIR}/.env \
+              -v ${APP_DIR}/data:/app/data \
+              ${IMAGE_NAME}:latest
 
             # ── Set up query cleanup cron (runs daily) ────────
             # Deletes uploaded query images older than 7 days to
             # prevent unbounded disk growth.
-            CRON_CMD="0 2 * * * find \${APP_DIR}/data/queries -type f -mtime +7 -delete"
-            (crontab -l 2>/dev/null | grep -v "data/queries"; echo "\${CRON_CMD}") | crontab -
+            CRON_CMD="0 2 * * * find ${APP_DIR}/data/queries -type f -mtime +7 -delete"
+            (crontab -l 2>/dev/null | grep -v "data/queries"; echo "${CRON_CMD}") | crontab -
             echo "Query cleanup cron installed (daily at 2am)"
 
             # ── Health check ──────────────────────────────────
             echo "Waiting for app to start..."
             sleep 15
             curl -sf http://localhost:8000/health \
-              || (echo "Health check failed" && docker logs \${IMAGE_NAME} --tail 50 && exit 1)
+              || (echo "Health check failed" && docker logs ${IMAGE_NAME} --tail 50 && exit 1)
 
             # ── Prune old images ──────────────────────────────
             docker image prune -f
