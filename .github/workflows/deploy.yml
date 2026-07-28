@@ -65,46 +65,23 @@ jobs:
 
       # ── 4. Deploy on server ──────────────────────────────────────
       - name: Deploy on server
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-          GROQ_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           ssh -i ~/.ssh/deploy_key \
               -p ${{ secrets.SSH_PORT }} \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-            set -e
-            cd ${{ env.APP_DIR }}
-            
-            echo '=== Creating .env ==='
-            echo 'GROQ_API_KEY=${GROQ_KEY}' > .env
-            chmod 600 .env
-            
-            echo '=== Building image ==='
-            docker build -t ${{ env.IMAGE_NAME }}:${IMAGE_TAG} .
-            docker tag ${{ env.IMAGE_NAME }}:${IMAGE_TAG} ${{ env.IMAGE_NAME }}:latest
-            
-            echo '=== Stopping old container ==='
-            docker stop ${{ env.IMAGE_NAME }} 2>/dev/null || true
-            docker rm ${{ env.IMAGE_NAME }} 2>/dev/null || true
-            
-            echo '=== Starting new container ==='
-            docker run -d \
-              --name ${{ env.IMAGE_NAME }} \
-              --restart unless-stopped \
-              -p 8000:8000 \
-              --memory=25g \
-              --memory-swap=25g \
-              --cpus=2.0 \
-              --env-file .env \
-              -v ${{ env.APP_DIR }}/data:/app/data \
-              ${{ env.IMAGE_NAME }}:latest
-            
-            echo '=== Health check ==='
-            sleep 15
-            curl -f http://localhost:8000/health || exit 1
-            
-            echo '=== Cleanup ==='
-            docker image prune -f
-            
-            echo 'Deployment complete'
-          "
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "cd ${{ env.APP_DIR }} && \
+               echo 'GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}' > .env && \
+               chmod 600 .env && \
+               echo '=== Building ===' && \
+               docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} . && \
+               docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.IMAGE_NAME }}:latest && \
+               echo '=== Stopping old container ===' && \
+               docker stop ${{ env.IMAGE_NAME }} 2>/dev/null || true && \
+               docker rm ${{ env.IMAGE_NAME }} 2>/dev/null || true && \
+               echo '=== Starting container ===' && \
+               docker run -d --name ${{ env.IMAGE_NAME }} --restart unless-stopped -p 8000:8000 --memory=25g --memory-swap=25g --cpus=2.0 -e GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} -v ${{ env.APP_DIR }}/data:/app/data ${{ env.IMAGE_NAME }}:latest && \
+               echo '=== Waiting for startup ===' && \
+               sleep 15 && \
+               curl -f http://localhost:8000/health && \
+               docker image prune -f && \
+               echo '=== Done ==='"
