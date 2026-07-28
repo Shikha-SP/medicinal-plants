@@ -81,7 +81,7 @@ jobs:
                echo '=== Starting container ===' && \
                docker run -d --name ${{ env.IMAGE_NAME }} --restart unless-stopped -p 8000:8000 --memory=25g --memory-swap=25g --cpus=2.0 -e GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} -v ${{ env.APP_DIR }}/data:/app/data ${{ env.IMAGE_NAME }}:latest && \
                echo '=== Waiting for startup ===' && \
-               sleep 15 && \
+               for i in $(seq 1 24); do echo "Attempt $i/24..."; curl -sf http://localhost:8000/health && break || sleep 10; done && \
                curl -f http://localhost:8000/health && \
                docker image prune -f && \
                echo '=== Done ==='"
