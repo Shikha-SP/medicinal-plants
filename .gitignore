@@ -34,6 +34,7 @@ pip-wheel-metadata/
 htmlcov/
 .coverage
 coverage.xml
+.coverage.*
 
 # Logs
 *.log
