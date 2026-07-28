@@ -4,17 +4,18 @@ Mocks are set up globally in conftest.py.
 """
 
 import pytest
-import sys
-import os
-from unittest.mock import MagicMock
+from fastapi.testclient import TestClient
+
+
+def get_client():
+    """Import app after conftest mocks are applied."""
+    from main import app
+    return TestClient(app)
 
 
 def test_health_endpoint():
-    """Test health endpoint returns success"""
-    # Import after mocking
-    from main import app
-    client = TestClient(app)
-    
+    """Test health endpoint returns success."""
+    client = get_client()
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
@@ -23,30 +24,24 @@ def test_health_endpoint():
 
 
 def test_root_endpoint():
-    """Test root endpoint serves HTML"""
-    from main import app
-    client = TestClient(app)
-    
+    """Test root endpoint serves the frontend."""
+    client = get_client()
     response = client.get("/")
     assert response.status_code == 200
 
 
 def test_identify_missing_file():
-    """Test identify endpoint rejects request without file"""
-    from main import app
-    client = TestClient(app)
-    
+    """Test identify endpoint rejects request without a file."""
+    client = get_client()
     response = client.post("/identify")
     assert response.status_code == 422  # FastAPI validation error
 
 
 def test_identify_invalid_file_type():
-    """Test identify endpoint rejects non-image files"""
-    from main import app
-    client = TestClient(app)
-    
+    """Test identify endpoint rejects non-image files."""
+    client = get_client()
     response = client.post(
         "/identify",
-        files={"file": ("test.txt", b"not an image", "text/plain")}
+        files={"file": ("test.txt", b"not an image", "text/plain")},
     )
     assert response.status_code == 400
