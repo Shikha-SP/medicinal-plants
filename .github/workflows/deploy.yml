@@ -64,6 +64,7 @@ jobs:
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_DIR }}/
 
       # ── 4. Build and deploy on server ────────────────────────────
+      # Server is CentOS — uses dnf/yum, systemctl for docker service
       - name: Build and deploy on server
         run: |
           ssh -i ~/.ssh/deploy_key \
@@ -75,6 +76,25 @@ jobs:
             IMAGE_TAG="${{ github.sha }}"
             APP_DIR="${{ env.APP_DIR }}"
             IMAGE_NAME="${{ env.IMAGE_NAME }}"
+
+            # ── Ensure Docker is installed (CentOS) ───────────
+            if ! command -v docker &>/dev/null; then
+              echo "Docker not found — installing on CentOS..."
+              sudo dnf -y install dnf-plugins-core
+              sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+              sudo dnf -y install docker-ce docker-ce-cli containerd.io
+              sudo systemctl enable docker
+              sudo systemctl start docker
+              # Allow deployuser to run docker without sudo
+              sudo usermod -aG docker \$(whoami)
+              echo "Docker installed. Re-login may be needed for group changes."
+            fi
+
+            # ── Ensure Docker daemon is running ───────────────
+            if ! sudo systemctl is-active --quiet docker; then
+              echo "Starting Docker service..."
+              sudo systemctl start docker
+            fi
 
             cd \${APP_DIR}
 

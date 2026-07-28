@@ -61,48 +61,17 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install test dependencies only
+        # Heavy packages (torch, faiss, chromadb) are mocked in tests
+        # so we only need the web framework and test tools here.
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-asyncio httpx
+          pip install fastapi uvicorn python-multipart python-dotenv pillow \
+                      pytest pytest-cov httpx
 
       - name: Run tests
         run: |
-          # Create minimal test structure if tests don't exist
-          if [ ! -d "tests" ]; then
-            mkdir tests
-            cat > tests/test_health.py << 'EOF'
-          import pytest
-          from fastapi.testclient import TestClient
-          import sys
-          import os
-
-          # Mock environment
-          os.environ['GROQ_API_KEY'] = 'test_key_mock'
-
-          # Create mock data dirs before import
-          os.makedirs('data/chroma_db', exist_ok=True)
-
-          # Skip actual model loading for tests
-          sys.modules['chromadb'] = __import__('unittest.mock').MagicMock()
-          sys.modules['sentence_transformers'] = __import__('unittest.mock').MagicMock()
-          sys.modules['groq'] = __import__('unittest.mock').MagicMock()
-
-          from main import app
-
-          client = TestClient(app)
-
-          def test_health_endpoint():
-              """Test that health endpoint returns 200"""
-              response = client.get("/health")
-              assert response.status_code == 200
-              data = response.json()
-              assert "status" in data
-          EOF
-          fi
-          
-          pytest tests/ -v --cov=. --cov-report=term-missing --cov-report=xml || true
+          pytest tests/ -v --cov=. --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage to artifacts
         uses: actions/upload-artifact@v4
@@ -124,14 +93,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install safety
+      - name: Scan requirements for known CVEs
         run: |
           pip install safety
-
-      - name: Check for known security vulnerabilities
-        run: |
-          pip install -r requirements.txt
-          safety check --json || true
+          safety check -r requirements.txt --json || true
         continue-on-error: true
 
   build:
@@ -146,28 +111,20 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Just verify the image builds cleanly from the Dockerfile.
+      # A real runtime smoke test is not possible in CI because the
+      # app requires the data volume (FAISS index, ChromaDB) and a
+      # live GROQ_API_KEY — those only exist on the server.
       - name: Build Docker image
         run: |
           docker build -t medicinal-plants:${{ github.sha }} .
+          echo "Image built successfully: medicinal-plants:${{ github.sha }}"
 
-      - name: Test Docker image
+      - name: Verify image exists
         run: |
-          # Start container in background
-          docker run -d \
-            --name test-container \
-            -e GROQ_API_KEY=test_mock_key \
-            -p 8000:8000 \
-            medicinal-plants:${{ github.sha }}
-          
-          # Wait for startup
-          sleep 15
-          
-          # Basic smoke test
-          curl -f http://localhost:8000/health || exit 1
-          
-          # Cleanup
-          docker stop test-container
-          docker rm test-container
+          docker image inspect medicinal-plants:${{ github.sha }} \
+            --format '{{.Id}} {{.Size}}' \
+            | awk '{printf "Image ID: %s\nSize: %.1f MB\n", $1, $2/1024/1024}'
 
   summary:
     name: CI Summary
