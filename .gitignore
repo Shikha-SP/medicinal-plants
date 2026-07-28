@@ -38,17 +38,8 @@ coverage.xml
 # Logs
 *.log
 
-# Generated artifacts
-plant_database.index
-dataset_image_labels.json
-queries/
-dataset/
-
 # Environment variables
 .env
 
-# ChromaDB vector database
-data/chroma_db/
-
-# FAISS index
-data/plant_database.index
+# Entire data directory — add manually to server
+data/

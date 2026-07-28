@@ -1,6 +1,48 @@
+# Git
 .git
-__pycache__
+.gitignore
+
+# GitHub Actions
+.github/
+
+# Python artifacts
+__pycache__/
 *.pyc
+*.py[cod]
+*.class
+*.egg-info/
+pip-wheel-metadata/
+build/
+dist/
+
+# Virtual environments
 .env
-.venv
-data/chroma_db
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editor
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs / test coverage
+*.log
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Runtime artifacts (gitignored, live only on server via volume)
+data/chroma_db/
+data/plant_database.index
+data/queries/
+data/dataset/
+data/dataset_image_labels.json
+
+# README
+README.md
