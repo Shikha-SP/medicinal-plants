@@ -81,6 +81,61 @@ medicinal-plants/
 
 ---
 
+## Deployment
+
+### Server Prerequisites (CentOS)
+
+1. **Install Docker**:
+   ```bash
+   sudo dnf install -y dnf-plugins-core
+   sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+   sudo dnf install -y docker-ce docker-ce-cli containerd.io
+   sudo systemctl enable docker
+   sudo systemctl start docker
+   ```
+
+2. **Add deployuser to docker group**:
+   ```bash
+   sudo usermod -aG docker deployuser
+   newgrp docker
+   ```
+
+3. **Copy data files to server**:
+   ```bash
+   scp -r data/ deployuser@your-server:/home/deployuser/app/
+   ```
+
+### GitHub Secrets
+
+Add these in **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|---|---|
+| `SSH_HOST` | Server IP or domain |
+| `SSH_USER` | `deployuser` |
+| `SSH_PRIVATE_KEY` | Full contents of `~/.ssh/id_rsa` |
+| `SSH_PORT` | `22` (or your SSH port) |
+| `GROQ_API_KEY` | Get from [console.groq.com](https://console.groq.com) |
+
+### Deploy
+
+1. **CI runs automatically** on every push to `main` — lints, tests, builds Docker image
+2. **Deploy manually** — go to **Actions → Deploy to Server → Run workflow**, type `deploy` to confirm
+
+### Resource Limits
+
+The container runs with these limits to prevent runaway resource usage:
+
+| Resource | Limit |
+|---|---|
+| Memory | 25 GB |
+| CPU | 2 cores |
+| Processes | 512 |
+
+Query images older than 7 days are automatically deleted daily at 2am.
+
+---
+
 ## Team
 
 | Member | Role |

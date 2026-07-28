@@ -77,23 +77,22 @@ jobs:
             APP_DIR="${{ env.APP_DIR }}"
             IMAGE_NAME="${{ env.IMAGE_NAME }}"
 
-            # ── Ensure Docker is installed (CentOS) ───────────
+            # ── Ensure Docker is installed and running ───────────
+            # deployuser must be in the docker group or have passwordless
+            # sudo access. If deploying for the first time, run on server:
+            #   sudo usermod -aG docker deployuser
+            #   newgrp docker
             if ! command -v docker &>/dev/null; then
-              echo "Docker not found — installing on CentOS..."
-              sudo dnf -y install dnf-plugins-core
-              sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-              sudo dnf -y install docker-ce docker-ce-cli containerd.io
-              sudo systemctl enable docker
-              sudo systemctl start docker
-              # Allow deployuser to run docker without sudo
-              sudo usermod -aG docker \$(whoami)
-              echo "Docker installed. Re-login may be needed for group changes."
+              echo "ERROR: Docker is not installed on this server."
+              echo "Install Docker manually and add deployuser to docker group."
+              exit 1
             fi
 
-            # ── Ensure Docker daemon is running ───────────────
-            if ! sudo systemctl is-active --quiet docker; then
-              echo "Starting Docker service..."
-              sudo systemctl start docker
+            # Verify deployuser can run docker without sudo
+            if ! docker info >/dev/null 2>&1; then
+              echo "ERROR: deployuser cannot run docker."
+              echo "Add to docker group: sudo usermod -aG docker \$(whoami) && newgrp docker"
+              exit 1
             fi
 
             cd \${APP_DIR}
@@ -118,14 +117,30 @@ jobs:
             docker rm   \${IMAGE_NAME} 2>/dev/null || true
 
             # ── Start new container ───────────────────────────
-            echo "Starting new container..."
+            # Resource limits prevent runaway memory/CPU/disk usage:
+            #   --memory=25g          max 25GB RAM
+            #   --memory-swap=25g     no swap (mem+swap = mem)
+            #   --cpus=2.0            max 2 CPU cores
+            #   --pids-limit=512      max 512 processes
+            echo "Starting new container with resource limits..."
             docker run -d \
               --name \${IMAGE_NAME} \
               --restart unless-stopped \
               -p 8000:8000 \
+              --memory=25g \
+              --memory-swap=25g \
+              --cpus=2.0 \
+              --pids-limit=512 \
               --env-file \${APP_DIR}/.env \
               -v \${APP_DIR}/data:/app/data \
               \${IMAGE_NAME}:latest
+
+            # ── Set up query cleanup cron (runs daily) ────────
+            # Deletes uploaded query images older than 7 days to
+            # prevent unbounded disk growth.
+            CRON_CMD="0 2 * * * find \${APP_DIR}/data/queries -type f -mtime +7 -delete"
+            (crontab -l 2>/dev/null | grep -v "data/queries"; echo "\${CRON_CMD}") | crontab -
+            echo "Query cleanup cron installed (daily at 2am)"
 
             # ── Health check ──────────────────────────────────
             echo "Waiting for app to start..."
